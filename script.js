@@ -417,11 +417,14 @@ function setupMonthFilters() {
 
 function listenToData() {
     if (!currentUser) return;
-    const q = query(comprasCol, where("userId", "==", currentUser.uid), orderBy("dataCriacao", "desc"));
+    const q = query(comprasCol, where("userId", "==", currentUser.uid));
     unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         currentItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Ordenar no frontend para evitar a necessidade de Índice Composto no Firebase
+        currentItems.sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
         render();
     }, (error) => {
+        console.error("Erro no onSnapshot:", error);
         if(error.code !== 'permission-denied') showToast('Erro ao carregar dados.', 'error');
     });
 }
