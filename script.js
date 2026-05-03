@@ -50,10 +50,11 @@ let editId = null;
 let unsubscribeSnapshot = null;
 let unsubscribeCats = null;
 
-// Modo visitante
+// Modo visitante e ID do dono da lista
 const urlParams = new URLSearchParams(window.location.search);
 const viewUserId = urlParams.get('view');
-let isVisitor = !!viewUserId;
+let isVisitor = false;
+let listOwnerId = null;
 
 // ELEMENTOS DO DOM
 const authSection = document.getElementById('authSection');
@@ -187,54 +188,67 @@ if (btnCopyShareLink) {
 // AUTENTICAÇÃO E VISITANTE
 // ==========================================
 function initAuthOrVisitor() {
-    if (isVisitor) {
-        currentUser = { uid: viewUserId };
-        authSection.style.display = 'none';
-        authNav.style.display = 'none';
-        appSection.style.display = 'block';
-        mainNav.style.display = 'flex';
-        
-        document.querySelector('a[href="#cadastro"]').style.display = 'none';
-        if(btnSettings) btnSettings.style.display = 'none';
-        if(btnLogout) btnLogout.style.display = 'none';
-        document.getElementById('cadastro').style.display = 'none';
-        document.getElementById('btnCopyNextMonth').style.display = 'none';
-        
-        // Disable orcamento inputs for visitor
-        orcamentoInput.readOnly = true;
-        gastoRealInput.readOnly = true;
-        btnSaveOrcamento.style.display = 'none';
-        btnSaveGastoReal.style.display = 'none';
-
-        showToast('Visualizando no Modo Visitante');
-        loadBudgetData(filterMonthDashboard.value);
-        listenToCategories();
-        listenToData();
-    } else {
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                authSection.style.display = 'none';
-                authNav.style.display = 'none';
-                appSection.style.display = 'block';
-                mainNav.style.display = 'flex';
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            
+            // Verifica se está acessando a lista de outra pessoa
+            if (viewUserId && viewUserId !== user.uid) {
+                isVisitor = true;
+                listOwnerId = viewUserId;
                 
-                loadBudgetData(filterMonthDashboard.value);
-                listenToCategories();
-                listenToData();
+                // Configuração da UI para o visitante
+                document.querySelector('a[href="#cadastro"]').style.display = 'none';
+                if(btnSettings) btnSettings.style.display = 'none';
+                document.getElementById('cadastro').style.display = 'none';
+                document.getElementById('btnCopyNextMonth').style.display = 'none';
+                
+                orcamentoInput.readOnly = true;
+                gastoRealInput.readOnly = true;
+                btnSaveOrcamento.style.display = 'none';
+                btnSaveGastoReal.style.display = 'none';
+                
+                showToast('Visualizando lista compartilhada');
             } else {
-                currentUser = null;
-                authSection.style.display = 'block';
-                authNav.style.display = 'flex';
-                appSection.style.display = 'none';
-                mainNav.style.display = 'none';
-                if (unsubscribeSnapshot) unsubscribeSnapshot();
-                if (unsubscribeCats) unsubscribeCats();
-                currentItems = [];
-                currentCategories = [];
+                isVisitor = false;
+                listOwnerId = user.uid;
+                
+                // Configuração da UI para o dono da lista
+                document.querySelector('a[href="#cadastro"]').style.display = 'block';
+                if(btnSettings) btnSettings.style.display = 'inline-flex';
+                document.getElementById('cadastro').style.display = 'block';
+                document.getElementById('btnCopyNextMonth').style.display = 'inline-flex';
+                
+                orcamentoInput.readOnly = false;
+                gastoRealInput.readOnly = false;
+                btnSaveOrcamento.style.display = 'inline-flex';
+                btnSaveGastoReal.style.display = 'inline-flex';
             }
-        });
-    }
+
+            authSection.style.display = 'none';
+            authNav.style.display = 'none';
+            appSection.style.display = 'block';
+            mainNav.style.display = 'flex';
+            
+            loadBudgetData(filterMonthDashboard.value);
+            listenToCategories();
+            listenToData();
+        } else {
+            currentUser = null;
+            isVisitor = false;
+            listOwnerId = null;
+            
+            authSection.style.display = 'block';
+            authNav.style.display = 'flex';
+            appSection.style.display = 'none';
+            mainNav.style.display = 'none';
+            
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            if (unsubscribeCats) unsubscribeCats();
+            currentItems = [];
+            currentCategories = [];
+        }
+    });
 }
 
 // Tabs Auth & Login & Register logic
@@ -294,8 +308,8 @@ if(btnLogout) {
 // ORÇAMENTO (BUDGET)
 // ==========================================
 async function loadBudgetData(monthStr) {
-    if (!currentUser) return;
-    const docRef = doc(db, "orcamentos", `${currentUser.uid}_${monthStr}`);
+    if (!currentUser || !listOwnerId) return;
+    const docRef = doc(db, "orcamentos", `${listOwnerId}_${monthStr}`);
     try {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
@@ -359,8 +373,8 @@ filterMonthDashboard.addEventListener('change', () => {
 // CATEGORIAS PERSONALIZADAS
 // ==========================================
 function listenToCategories() {
-    if (!currentUser) return;
-    const q = query(categoriasCol, where("userId", "==", currentUser.uid));
+    if (!currentUser || !listOwnerId) return;
+    const q = query(categoriasCol, where("userId", "==", listOwnerId));
     unsubscribeCats = onSnapshot(q, (snapshot) => {
         const customCats = snapshot.docs.map(doc => doc.data().nome);
         currentCategories = [...defaultCategories, ...customCats];
@@ -422,8 +436,8 @@ function setupMonthFilters() {
 }
 
 function listenToData() {
-    if (!currentUser) return;
-    const q = query(comprasCol, where("userId", "==", currentUser.uid));
+    if (!currentUser || !listOwnerId) return;
+    const q = query(comprasCol, where("userId", "==", listOwnerId));
     unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         currentItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         // Ordenar no frontend para evitar a necessidade de Índice Composto no Firebase
