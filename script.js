@@ -12,7 +12,9 @@ import {
     collection, 
     addDoc, 
     updateDoc, 
-    deleteDoc, 
+    deleteDoc,
+    setDoc,
+    getDoc,
     doc, 
     query, 
     where, 
@@ -36,13 +38,17 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const comprasCol = collection(db, "compras");
+const categoriasCol = collection(db, "categorias");
+const orcamentosCol = collection(db, "orcamentos");
 
 // ESTADO DA APLICAÇÃO
 let currentUser = null;
 let currentItems = [];
+let currentCategories = [];
 let isEditing = false;
 let editId = null;
 let unsubscribeSnapshot = null;
+let unsubscribeCats = null;
 
 // Modo visitante
 const urlParams = new URLSearchParams(window.location.search);
@@ -81,6 +87,17 @@ const filterCategory = document.getElementById('filterCategory');
 const filterStatus = document.getElementById('filterStatus');
 const btnCopyNextMonth = document.getElementById('btnCopyNextMonth');
 const btnExportWhatsapp = document.getElementById('btnExportWhatsapp');
+const selectCategoriaForm = document.getElementById('categoria');
+
+// Dashboard Orçamento
+const orcamentoInput = document.getElementById('orcamentoInput');
+const gastoRealInput = document.getElementById('gastoRealInput');
+const btnSaveOrcamento = document.getElementById('btnSaveOrcamento');
+const btnSaveGastoReal = document.getElementById('btnSaveGastoReal');
+const saldoRestante = document.getElementById('saldoRestante');
+
+// Categorias Padrões
+const defaultCategories = ["Alimentação", "Higiene", "Limpeza", "Bebidas", "Hortifruti", "Outros"];
 
 // INICIALIZAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
@@ -163,28 +180,31 @@ if (btnCopyShareLink) {
 // ==========================================
 // AUTENTICAÇÃO E VISITANTE
 // ==========================================
-
 function initAuthOrVisitor() {
     if (isVisitor) {
-        // Usuário é um visitante via link
         currentUser = { uid: viewUserId };
         authSection.style.display = 'none';
         authNav.style.display = 'none';
         appSection.style.display = 'block';
-        
         mainNav.style.display = 'flex';
         
-        // Esconder elementos que o visitante não pode usar
         document.querySelector('a[href="#cadastro"]').style.display = 'none';
         if(btnSettings) btnSettings.style.display = 'none';
         if(btnLogout) btnLogout.style.display = 'none';
         document.getElementById('cadastro').style.display = 'none';
         document.getElementById('btnCopyNextMonth').style.display = 'none';
         
+        // Disable orcamento inputs for visitor
+        orcamentoInput.readOnly = true;
+        gastoRealInput.readOnly = true;
+        btnSaveOrcamento.style.display = 'none';
+        btnSaveGastoReal.style.display = 'none';
+
         showToast('Visualizando no Modo Visitante');
+        loadBudgetData(filterMonthDashboard.value);
+        listenToCategories();
         listenToData();
     } else {
-        // Fluxo normal com Firebase Auth
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -192,6 +212,9 @@ function initAuthOrVisitor() {
                 authNav.style.display = 'none';
                 appSection.style.display = 'block';
                 mainNav.style.display = 'flex';
+                
+                loadBudgetData(filterMonthDashboard.value);
+                listenToCategories();
                 listenToData();
             } else {
                 currentUser = null;
@@ -200,18 +223,19 @@ function initAuthOrVisitor() {
                 appSection.style.display = 'none';
                 mainNav.style.display = 'none';
                 if (unsubscribeSnapshot) unsubscribeSnapshot();
+                if (unsubscribeCats) unsubscribeCats();
                 currentItems = [];
+                currentCategories = [];
             }
         });
     }
 }
 
-// Tabs Auth
+// Tabs Auth & Login & Register logic
 authTabs.forEach(tab => {
     tab.addEventListener('click', () => {
         authTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        
         const target = tab.getAttribute('data-tab');
         if (target === 'login') {
             loginForm.style.display = 'flex';
@@ -223,102 +247,182 @@ authTabs.forEach(tab => {
     });
 });
 
-// Login
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
     const btn = loginForm.querySelector('button');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
-
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
     try {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
         showToast('Login realizado com sucesso!');
         loginForm.reset();
     } catch (error) {
-        console.error("Erro Login:", error);
-        showToast('Erro ao fazer login. Verifique as credenciais.', 'error');
+        showToast('Erro ao fazer login.', 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Entrar';
+        btn.disabled = false; btn.innerHTML = 'Entrar';
     }
 });
 
-// Registro
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('regEmail').value;
-    const password = document.getElementById('regPassword').value;
     const btn = registerForm.querySelector('button');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
-
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await createUserWithEmailAndPassword(auth, document.getElementById('regEmail').value, document.getElementById('regPassword').value);
         showToast('Conta criada com sucesso!');
         registerForm.reset();
     } catch (error) {
-        console.error("Erro Registro:", error);
-        showToast('Erro ao criar conta. Tente uma senha mais forte.', 'error');
+        showToast('Erro ao criar conta.', 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Criar Conta';
+        btn.disabled = false; btn.innerHTML = 'Criar Conta';
     }
 });
 
-// Logout
 if(btnLogout) {
     btnLogout.addEventListener('click', async () => {
-        try {
-            await signOut(auth);
-            showToast('Você saiu da conta.');
-        } catch (error) {
-            showToast('Erro ao sair da conta.', 'error');
-        }
+        try { await signOut(auth); showToast('Você saiu da conta.'); } 
+        catch (error) { showToast('Erro ao sair da conta.', 'error'); }
     });
 }
 
 // ==========================================
+// ORÇAMENTO (BUDGET)
+// ==========================================
+async function loadBudgetData(monthStr) {
+    if (!currentUser) return;
+    const docRef = doc(db, "orcamentos", `${currentUser.uid}_${monthStr}`);
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            orcamentoInput.value = docSnap.data().orcamento || '';
+            gastoRealInput.value = docSnap.data().gastoReal || '';
+        } else {
+            orcamentoInput.value = '';
+            gastoRealInput.value = '';
+        }
+        updateSaldoVisual();
+    } catch (err) {
+        console.error("Erro ao carregar orçamento", err);
+    }
+}
+
+async function saveBudgetData(monthStr, field, value) {
+    if (!currentUser || isVisitor) return;
+    const docRef = doc(db, "orcamentos", `${currentUser.uid}_${monthStr}`);
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            await updateDoc(docRef, { [field]: value });
+        } else {
+            await setDoc(docRef, { userId: currentUser.uid, mes: monthStr, [field]: value });
+        }
+        showToast('Valor salvo!');
+        updateSaldoVisual();
+    } catch (err) {
+        showToast('Erro ao salvar valor.', 'error');
+    }
+}
+
+btnSaveOrcamento.addEventListener('click', () => {
+    saveBudgetData(filterMonthDashboard.value, 'orcamento', Number(orcamentoInput.value));
+});
+btnSaveGastoReal.addEventListener('click', () => {
+    saveBudgetData(filterMonthDashboard.value, 'gastoReal', Number(gastoRealInput.value));
+});
+
+function updateSaldoVisual() {
+    const orc = Number(orcamentoInput.value);
+    const gasto = Number(gastoRealInput.value);
+    if(orc > 0) {
+        const diff = orc - gasto;
+        if(diff >= 0) {
+            saldoRestante.innerHTML = `Restam <strong style="color:var(--success)">R$ ${diff.toFixed(2)}</strong> do orçamento.`;
+        } else {
+            saldoRestante.innerHTML = `Passou <strong style="color:var(--danger)">R$ ${Math.abs(diff).toFixed(2)}</strong> do orçamento!`;
+        }
+    } else {
+        saldoRestante.innerHTML = '';
+    }
+}
+
+filterMonthDashboard.addEventListener('change', () => {
+    loadBudgetData(filterMonthDashboard.value);
+    render();
+});
+
+// ==========================================
+// CATEGORIAS PERSONALIZADAS
+// ==========================================
+function listenToCategories() {
+    if (!currentUser) return;
+    const q = query(categoriasCol, where("userId", "==", currentUser.uid));
+    unsubscribeCats = onSnapshot(q, (snapshot) => {
+        const customCats = snapshot.docs.map(doc => doc.data().nome);
+        currentCategories = [...defaultCategories, ...customCats];
+        renderCategorySelects();
+    });
+}
+
+function renderCategorySelects() {
+    // Para o filtro da lista
+    const currentFilterVal = filterCategory.value;
+    filterCategory.innerHTML = `<option value="all">Todas Categorias</option>` + 
+        currentCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+    filterCategory.value = currentCategories.includes(currentFilterVal) ? currentFilterVal : 'all';
+
+    // Para o formulário
+    const currentFormVal = selectCategoriaForm.value;
+    selectCategoriaForm.innerHTML = `<option value="">Selecione...</option>` + 
+        currentCategories.map(c => `<option value="${c}">${c}</option>`).join('') +
+        `<option value="nova" style="font-weight: bold; color: var(--primary-color);">+ Adicionar Nova...</option>`;
+    selectCategoriaForm.value = currentCategories.includes(currentFormVal) ? currentFormVal : '';
+}
+
+selectCategoriaForm.addEventListener('change', async (e) => {
+    if (e.target.value === 'nova') {
+        const novaCat = prompt('Digite o nome da nova categoria:');
+        if (novaCat && novaCat.trim().length > 0) {
+            try {
+                await addDoc(categoriasCol, {
+                    nome: novaCat.trim(),
+                    userId: currentUser.uid
+                });
+                showToast('Categoria adicionada!');
+                // Voltar valor para vazio enquanto atualiza o onSnapshot
+                selectCategoriaForm.value = '';
+            } catch (err) {
+                showToast('Erro ao criar categoria', 'error');
+            }
+        } else {
+            selectCategoriaForm.value = '';
+        }
+    }
+});
+
+// ==========================================
 // APP LOGIC (COMPRAS)
 // ==========================================
-
 function setupMonthFilters() {
     const now = new Date();
     const currentMonthStr = now.toISOString().slice(0, 7);
-    
     const months = [];
     for(let i = -3; i <= 6; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         months.push(d.toISOString().slice(0, 7));
     }
-
     const options = months.map(m => `<option value="${m}" ${m === currentMonthStr ? 'selected' : ''}>${m}</option>`).join('');
     filterMonth.innerHTML = options;
     filterMonthDashboard.innerHTML = options;
-    
     document.getElementById('mesReferencia').value = currentMonthStr;
 }
 
 function listenToData() {
     if (!currentUser) return;
-
-    const q = query(
-        comprasCol, 
-        where("userId", "==", currentUser.uid),
-        orderBy("dataCriacao", "desc")
-    );
-
+    const q = query(comprasCol, where("userId", "==", currentUser.uid), orderBy("dataCriacao", "desc"));
     unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         currentItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         render();
     }, (error) => {
-        console.error("Erro no onSnapshot:", error);
-        if(error.code !== 'permission-denied') {
-            showToast('Erro ao carregar dados.', 'error');
-        } else if (isVisitor) {
-             showToast('Acesso negado: as regras do banco de dados ainda não permitem visitantes.', 'error');
-        }
+        if(error.code !== 'permission-denied') showToast('Erro ao carregar dados.', 'error');
     });
 }
 
@@ -341,29 +445,21 @@ function render() {
 function renderTable(items) {
     productsList.innerHTML = items.map(item => `
         <tr class="animate-fade-in">
-            <td>
-                <span class="status-badge ${item.status.toLowerCase()}">${item.status}</span>
-            </td>
+            <td><span class="status-badge ${item.status.toLowerCase()}">${item.status}</span></td>
             <td>
                 <strong>${item.nome}</strong>
                 ${item.observacao ? `<br><small class="text-muted">${item.observacao}</small>` : ''}
             </td>
             <td>${item.categoria}</td>
             <td>${item.quantidade} ${item.unidade}</td>
-            <td>R$ ${Number(item.valor).toFixed(2)}</td>
-            <td><strong>R$ ${(item.quantidade * item.valor).toFixed(2)}</strong></td>
             <td>
                 <div class="actions">
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
                         <i class="fas ${item.status === 'Comprado' ? 'fa-undo' : 'fa-check'}"></i>
                     </button>
                     ${!isVisitor ? `
-                    <button onclick="editItem('${item.id}')" class="btn-icon btn-edit" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="deleteItem('${item.id}')" class="btn-icon btn-delete" title="Excluir">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <button onclick="editItem('${item.id}')" class="btn-icon btn-edit" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteItem('${item.id}')" class="btn-icon btn-delete" title="Excluir"><i class="fas fa-trash"></i></button>
                     ` : ''}
                 </div>
             </td>
@@ -371,48 +467,43 @@ function renderTable(items) {
     `).join('');
 
     if (items.length === 0) {
-        productsList.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem; color: var(--text-muted);">Nenhum item encontrado para este mês.</td></tr>';
+        productsList.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">Nenhum item encontrado para este mês.</td></tr>';
     }
 }
 
 function updateDashboard(items) {
-    const totalPrevisto = items.reduce((acc, item) => acc + (item.quantidade * item.valor), 0);
-    const totalComprado = items.filter(i => i.status === 'Comprado').reduce((acc, item) => acc + (item.quantidade * item.valor), 0);
-    const totalPendente = totalPrevisto - totalComprado;
-
-    const catGasto = {};
-    items.forEach(item => {
-        catGasto[item.categoria] = (catGasto[item.categoria] || 0) + (item.quantidade * item.valor);
-    });
-    const maiorCat = Object.entries(catGasto).sort((a, b) => b[1] - a[1])[0];
-
-    document.getElementById('totalPrevisto').innerText = `R$ ${totalPrevisto.toFixed(2)}`;
-    document.getElementById('totalComprado').innerText = `R$ ${totalComprado.toFixed(2)}`;
-    document.getElementById('totalPendente').innerText = `R$ ${totalPendente.toFixed(2)}`;
-    document.getElementById('maiorGastoCategoria').innerText = maiorCat ? maiorCat[0] : '-';
+    const totais = items.length;
+    const comprados = items.filter(i => i.status === 'Comprado').length;
+    
+    document.getElementById('totalItens').innerText = totais;
+    document.getElementById('progressoItens').innerText = `${comprados} / ${totais}`;
+    document.getElementById('itensComprados').innerText = comprados;
 }
 
-// SALVAR / EDITAR ITEM
 productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser || isVisitor) return;
     
+    const catForm = document.getElementById('categoria').value;
+    if(catForm === 'nova' || !catForm) {
+        showToast('Selecione uma categoria válida.', 'warning');
+        return;
+    }
+
     const btn = document.getElementById('btnSave');
     const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
     
     const data = {
         nome: document.getElementById('nome').value,
-        categoria: document.getElementById('categoria').value,
+        categoria: catForm,
         quantidade: Number(document.getElementById('quantidade').value),
         unidade: document.getElementById('unidade').value,
-        valor: Number(document.getElementById('valor').value),
         mesReferencia: document.getElementById('mesReferencia').value,
         status: document.getElementById('status').value,
         observacao: document.getElementById('observacao').value,
         dataCriacao: isEditing ? (currentItems.find(i => i.id === editId)?.dataCriacao || new Date().toISOString()) : new Date().toISOString(),
-        userId: currentUser.uid // Vincular ao usuário atual
+        userId: currentUser.uid
     };
 
     try {
@@ -427,27 +518,22 @@ productForm.addEventListener('submit', async (e) => {
             setupMonthFilters(); 
         }
     } catch (error) {
-        console.error("Erro ao salvar:", error);
         showToast('Erro ao salvar os dados.', 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        btn.disabled = false; btn.innerHTML = originalText;
     }
 });
 
-// ALTERNAR STATUS
 window.toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Pendente' ? 'Comprado' : 'Pendente';
     try {
         await updateDoc(doc(db, "compras", id), { status: newStatus });
         showToast(`Marcado como ${newStatus}`);
     } catch(err) {
-        console.error(err);
-        showToast('Erro ao atualizar status. Verifique as regras do Firebase.', 'error');
+        showToast('Erro ao atualizar status.', 'error');
     }
 };
 
-// EDITAR ITEM
 window.editItem = (id) => {
     if (isVisitor) return;
     const item = currentItems.find(i => i.id === id);
@@ -458,131 +544,95 @@ window.editItem = (id) => {
     document.getElementById('categoria').value = item.categoria;
     document.getElementById('quantidade').value = item.quantidade;
     document.getElementById('unidade').value = item.unidade;
-    document.getElementById('valor').value = item.valor;
     document.getElementById('mesReferencia').value = item.mesReferencia;
     document.getElementById('status').value = item.status;
     document.getElementById('observacao').value = item.observacao || '';
 
-    isEditing = true;
-    editId = id;
+    isEditing = true; editId = id;
     document.getElementById('btnSave').innerHTML = '<i class="fas fa-save"></i> Atualizar Produto';
     document.getElementById('btnCancel').style.display = 'inline-flex';
     document.getElementById('cadastro').scrollIntoView({ behavior: 'smooth' });
 };
 
-// EXCLUIR ITEM
 window.deleteItem = async (id) => {
     if (isVisitor) return;
     if (confirm('Tem certeza que deseja excluir este item?')) {
         try {
             await deleteDoc(doc(db, "compras", id));
             showToast('Item excluído com sucesso');
-        } catch(err) {
-            showToast('Erro ao excluir item', 'error');
-        }
+        } catch(err) { showToast('Erro ao excluir item', 'error'); }
     }
 };
 
-// CANCELAR EDIÇÃO
 document.getElementById('btnCancel').addEventListener('click', resetForm);
 
 function resetForm() {
     productForm.reset();
-    isEditing = false;
-    editId = null;
+    isEditing = false; editId = null;
     document.getElementById('btnSave').innerHTML = '<i class="fas fa-save"></i> Salvar Produto';
     document.getElementById('btnCancel').style.display = 'none';
     setupMonthFilters();
 }
 
-// COPIAR PARA PRÓXIMO MÊS (Apenas Pendentes ou Todos)
 if (btnCopyNextMonth) {
     btnCopyNextMonth.addEventListener('click', async () => {
         if (isVisitor) return;
         const currentMonth = filterMonth.value;
-        const itemsToCopy = currentItems.filter(item => item.mesReferencia === currentMonth);
+        const itemsToCopy = currentItems.filter(item => item.mesReferencia === currentMonth && item.status === 'Pendente');
 
         if (itemsToCopy.length === 0) {
-            showToast('Não há itens neste mês para copiar.', 'error');
-            return;
+            showToast('Não há itens pendentes para copiar.', 'error'); return;
         }
-
         const [year, month] = currentMonth.split('-').map(Number);
         const nextDate = new Date(year, month, 1); 
         const nextMonthStr = nextDate.toISOString().slice(0, 7);
 
-        if (confirm(`Deseja copiar os ${itemsToCopy.length} itens deste mês para ${nextMonthStr}? (Eles entrarão como Pendentes)`)) {
+        if (confirm(`Deseja transferir os ${itemsToCopy.length} itens pendentes para o mês de ${nextMonthStr}?`)) {
             try {
-                const btn = btnCopyNextMonth;
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copiando...';
-
+                btnCopyNextMonth.disabled = true; btnCopyNextMonth.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copiando...';
                 for (const item of itemsToCopy) {
                     const { id, dataCriacao, ...rest } = item;
-                    await addDoc(comprasCol, {
-                        ...rest,
-                        mesReferencia: nextMonthStr,
-                        status: 'Pendente',
-                        dataCriacao: new Date().toISOString()
-                    });
+                    await addDoc(comprasCol, { ...rest, mesReferencia: nextMonthStr, status: 'Pendente', dataCriacao: new Date().toISOString() });
+                    // Remove do mes atual para evitar duplicidade real
+                    await deleteDoc(doc(db, "compras", id));
                 }
-                showToast('Itens copiados com sucesso!');
+                showToast('Itens transferidos!');
                 filterMonth.value = nextMonthStr;
                 render();
-                
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-copy"></i> Copiar pendentes para o próximo mês';
             } catch (error) {
-                console.error("Erro ao copiar:", error);
                 showToast('Erro ao copiar itens.', 'error');
-                btnCopyNextMonth.disabled = false;
+            } finally {
+                btnCopyNextMonth.disabled = false; btnCopyNextMonth.innerHTML = '<i class="fas fa-copy"></i> Copiar pendentes para o próximo mês';
             }
         }
     });
 }
 
-// ==========================================
-// EXPORTAR PARA WHATSAPP
-// ==========================================
 if (btnExportWhatsapp) {
     btnExportWhatsapp.addEventListener('click', () => {
         const month = filterMonth.value;
         const items = currentItems.filter(item => item.mesReferencia === month);
         
-        if(items.length === 0) {
-            showToast('Não há itens para exportar neste mês.', 'error');
-            return;
-        }
+        if(items.length === 0) { showToast('Não há itens para exportar neste mês.', 'error'); return; }
 
         let message = `*🛒 Lista de Compras (${month})*\n\n`;
+        const categoriasAtuais = [...new Set(items.map(i => i.categoria))];
         
-        const categorias = [...new Set(items.map(i => i.categoria))];
-        
-        let totalGeral = 0;
-
-        categorias.forEach(cat => {
+        categoriasAtuais.forEach(cat => {
             message += `*_${cat}_*\n`;
             const itemsCat = items.filter(i => i.categoria === cat);
-            
             itemsCat.forEach(item => {
                 const check = item.status === 'Comprado' ? '✅' : '⏳';
-                const valTotal = (item.quantidade * item.valor);
-                totalGeral += valTotal;
-                message += `${check} ${item.nome} - ${item.quantidade}${item.unidade} (R$ ${valTotal.toFixed(2)})\n`;
+                message += `${check} ${item.nome} - ${item.quantidade}${item.unidade}\n`;
             });
             message += `\n`;
         });
-
-        message += `*💰 Total Estimado: R$ ${totalGeral.toFixed(2)}*\n`;
 
         const encodedMsg = encodeURIComponent(message);
         window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
     });
 }
 
-
-// EVENTOS DE FILTRO
 filterMonth.addEventListener('change', render);
-filterMonthDashboard.addEventListener('change', render);
 filterCategory.addEventListener('change', render);
 filterStatus.addEventListener('change', render);
