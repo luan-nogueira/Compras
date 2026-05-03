@@ -44,6 +44,11 @@ let isEditing = false;
 let editId = null;
 let unsubscribeSnapshot = null;
 
+// Modo visitante
+const urlParams = new URLSearchParams(window.location.search);
+const viewUserId = urlParams.get('view');
+let isVisitor = !!viewUserId;
+
 // ELEMENTOS DO DOM
 const authSection = document.getElementById('authSection');
 const appSection = document.getElementById('appSection');
@@ -60,6 +65,13 @@ const btnLogout = document.getElementById('btnLogout');
 const btnThemeToggles = document.querySelectorAll('.theme-toggle');
 const toastContainer = document.getElementById('toastContainer');
 
+// Modal Configurações
+const settingsModal = document.getElementById('settingsModal');
+const btnSettings = document.getElementById('btnSettings');
+const btnCloseSettings = document.getElementById('btnCloseSettings');
+const shareLinkInput = document.getElementById('shareLinkInput');
+const btnCopyShareLink = document.getElementById('btnCopyShareLink');
+
 // App Elements
 const productForm = document.getElementById('productForm');
 const productsList = document.getElementById('productsList');
@@ -74,6 +86,7 @@ const btnExportWhatsapp = document.getElementById('btnExportWhatsapp');
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     setupMonthFilters();
+    initAuthOrVisitor();
 });
 
 // ==========================================
@@ -120,8 +133,78 @@ function showToast(message, type = 'success') {
 }
 
 // ==========================================
-// AUTENTICAÇÃO
+// CONFIGURAÇÕES MODAL E COMPARTILHAMENTO
 // ==========================================
+if (btnSettings) {
+    btnSettings.addEventListener('click', () => {
+        if (!currentUser || isVisitor) return;
+        const currentUrl = window.location.origin + window.location.pathname;
+        shareLinkInput.value = `${currentUrl}?view=${currentUser.uid}`;
+        settingsModal.classList.add('active');
+    });
+}
+
+if (btnCloseSettings) {
+    btnCloseSettings.addEventListener('click', () => {
+        settingsModal.classList.remove('active');
+    });
+}
+
+if (btnCopyShareLink) {
+    btnCopyShareLink.addEventListener('click', () => {
+        navigator.clipboard.writeText(shareLinkInput.value).then(() => {
+            showToast('Link copiado para a área de transferência!');
+        }).catch(err => {
+            showToast('Erro ao copiar o link', 'error');
+        });
+    });
+}
+
+// ==========================================
+// AUTENTICAÇÃO E VISITANTE
+// ==========================================
+
+function initAuthOrVisitor() {
+    if (isVisitor) {
+        // Usuário é um visitante via link
+        currentUser = { uid: viewUserId };
+        authSection.style.display = 'none';
+        authNav.style.display = 'none';
+        appSection.style.display = 'block';
+        
+        mainNav.style.display = 'flex';
+        
+        // Esconder elementos que o visitante não pode usar
+        document.querySelector('a[href="#cadastro"]').style.display = 'none';
+        if(btnSettings) btnSettings.style.display = 'none';
+        if(btnLogout) btnLogout.style.display = 'none';
+        document.getElementById('cadastro').style.display = 'none';
+        document.getElementById('btnCopyNextMonth').style.display = 'none';
+        
+        showToast('Visualizando no Modo Visitante');
+        listenToData();
+    } else {
+        // Fluxo normal com Firebase Auth
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                authSection.style.display = 'none';
+                authNav.style.display = 'none';
+                appSection.style.display = 'block';
+                mainNav.style.display = 'flex';
+                listenToData();
+            } else {
+                currentUser = null;
+                authSection.style.display = 'block';
+                authNav.style.display = 'flex';
+                appSection.style.display = 'none';
+                mainNav.style.display = 'none';
+                if (unsubscribeSnapshot) unsubscribeSnapshot();
+                currentItems = [];
+            }
+        });
+    }
+}
 
 // Tabs Auth
 authTabs.forEach(tab => {
@@ -138,30 +221,6 @@ authTabs.forEach(tab => {
             registerForm.style.display = 'flex';
         }
     });
-});
-
-// Listener Auth State
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        // Usuário logado
-        currentUser = user;
-        authSection.style.display = 'none';
-        authNav.style.display = 'none';
-        appSection.style.display = 'block';
-        mainNav.style.display = 'flex';
-        listenToData();
-    } else {
-        // Usuário deslogado
-        currentUser = null;
-        authSection.style.display = 'block';
-        authNav.style.display = 'flex';
-        appSection.style.display = 'none';
-        mainNav.style.display = 'none';
-        if (unsubscribeSnapshot) {
-            unsubscribeSnapshot();
-        }
-        currentItems = [];
-    }
 });
 
 // Login
@@ -209,14 +268,16 @@ registerForm.addEventListener('submit', async (e) => {
 });
 
 // Logout
-btnLogout.addEventListener('click', async () => {
-    try {
-        await signOut(auth);
-        showToast('Você saiu da conta.');
-    } catch (error) {
-        showToast('Erro ao sair da conta.', 'error');
-    }
-});
+if(btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+        try {
+            await signOut(auth);
+            showToast('Você saiu da conta.');
+        } catch (error) {
+            showToast('Erro ao sair da conta.', 'error');
+        }
+    });
+}
 
 // ==========================================
 // APP LOGIC (COMPRAS)
@@ -253,9 +314,10 @@ function listenToData() {
         render();
     }, (error) => {
         console.error("Erro no onSnapshot:", error);
-        // Ocultar erros de permissão iniciais se as regras ainda não estiverem propagadas
         if(error.code !== 'permission-denied') {
             showToast('Erro ao carregar dados.', 'error');
+        } else if (isVisitor) {
+             showToast('Acesso negado: as regras do banco de dados ainda não permitem visitantes.', 'error');
         }
     });
 }
@@ -295,12 +357,14 @@ function renderTable(items) {
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
                         <i class="fas ${item.status === 'Comprado' ? 'fa-undo' : 'fa-check'}"></i>
                     </button>
+                    ${!isVisitor ? `
                     <button onclick="editItem('${item.id}')" class="btn-icon btn-edit" title="Editar">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button onclick="deleteItem('${item.id}')" class="btn-icon btn-delete" title="Excluir">
                         <i class="fas fa-trash"></i>
                     </button>
+                    ` : ''}
                 </div>
             </td>
         </tr>
@@ -331,7 +395,7 @@ function updateDashboard(items) {
 // SALVAR / EDITAR ITEM
 productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser || isVisitor) return;
     
     const btn = document.getElementById('btnSave');
     const originalText = btn.innerHTML;
@@ -378,12 +442,14 @@ window.toggleStatus = async (id, currentStatus) => {
         await updateDoc(doc(db, "compras", id), { status: newStatus });
         showToast(`Marcado como ${newStatus}`);
     } catch(err) {
-        showToast('Erro ao atualizar status', 'error');
+        console.error(err);
+        showToast('Erro ao atualizar status. Verifique as regras do Firebase.', 'error');
     }
 };
 
 // EDITAR ITEM
 window.editItem = (id) => {
+    if (isVisitor) return;
     const item = currentItems.find(i => i.id === id);
     if (!item) return;
 
@@ -406,6 +472,7 @@ window.editItem = (id) => {
 
 // EXCLUIR ITEM
 window.deleteItem = async (id) => {
+    if (isVisitor) return;
     if (confirm('Tem certeza que deseja excluir este item?')) {
         try {
             await deleteDoc(doc(db, "compras", id));
@@ -429,84 +496,89 @@ function resetForm() {
 }
 
 // COPIAR PARA PRÓXIMO MÊS (Apenas Pendentes ou Todos)
-btnCopyNextMonth.addEventListener('click', async () => {
-    const currentMonth = filterMonth.value;
-    const itemsToCopy = currentItems.filter(item => item.mesReferencia === currentMonth);
+if (btnCopyNextMonth) {
+    btnCopyNextMonth.addEventListener('click', async () => {
+        if (isVisitor) return;
+        const currentMonth = filterMonth.value;
+        const itemsToCopy = currentItems.filter(item => item.mesReferencia === currentMonth);
 
-    if (itemsToCopy.length === 0) {
-        showToast('Não há itens neste mês para copiar.', 'error');
-        return;
-    }
-
-    const [year, month] = currentMonth.split('-').map(Number);
-    const nextDate = new Date(year, month, 1); 
-    const nextMonthStr = nextDate.toISOString().slice(0, 7);
-
-    if (confirm(`Deseja copiar os ${itemsToCopy.length} itens deste mês para ${nextMonthStr}? (Eles entrarão como Pendentes)`)) {
-        try {
-            const btn = btnCopyNextMonth;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copiando...';
-
-            for (const item of itemsToCopy) {
-                const { id, dataCriacao, ...rest } = item;
-                await addDoc(comprasCol, {
-                    ...rest,
-                    mesReferencia: nextMonthStr,
-                    status: 'Pendente',
-                    dataCriacao: new Date().toISOString()
-                });
-            }
-            showToast('Itens copiados com sucesso!');
-            filterMonth.value = nextMonthStr;
-            render();
-            
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-copy"></i> Copiar pendentes para o próximo mês';
-        } catch (error) {
-            console.error("Erro ao copiar:", error);
-            showToast('Erro ao copiar itens.', 'error');
-            btnCopyNextMonth.disabled = false;
+        if (itemsToCopy.length === 0) {
+            showToast('Não há itens neste mês para copiar.', 'error');
+            return;
         }
-    }
-});
+
+        const [year, month] = currentMonth.split('-').map(Number);
+        const nextDate = new Date(year, month, 1); 
+        const nextMonthStr = nextDate.toISOString().slice(0, 7);
+
+        if (confirm(`Deseja copiar os ${itemsToCopy.length} itens deste mês para ${nextMonthStr}? (Eles entrarão como Pendentes)`)) {
+            try {
+                const btn = btnCopyNextMonth;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copiando...';
+
+                for (const item of itemsToCopy) {
+                    const { id, dataCriacao, ...rest } = item;
+                    await addDoc(comprasCol, {
+                        ...rest,
+                        mesReferencia: nextMonthStr,
+                        status: 'Pendente',
+                        dataCriacao: new Date().toISOString()
+                    });
+                }
+                showToast('Itens copiados com sucesso!');
+                filterMonth.value = nextMonthStr;
+                render();
+                
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-copy"></i> Copiar pendentes para o próximo mês';
+            } catch (error) {
+                console.error("Erro ao copiar:", error);
+                showToast('Erro ao copiar itens.', 'error');
+                btnCopyNextMonth.disabled = false;
+            }
+        }
+    });
+}
 
 // ==========================================
 // EXPORTAR PARA WHATSAPP
 // ==========================================
-btnExportWhatsapp.addEventListener('click', () => {
-    const month = filterMonth.value;
-    const items = currentItems.filter(item => item.mesReferencia === month);
-    
-    if(items.length === 0) {
-        showToast('Não há itens para exportar neste mês.', 'error');
-        return;
-    }
-
-    let message = `*🛒 Lista de Compras (${month})*\n\n`;
-    
-    const categorias = [...new Set(items.map(i => i.categoria))];
-    
-    let totalGeral = 0;
-
-    categorias.forEach(cat => {
-        message += `*_${cat}_*\n`;
-        const itemsCat = items.filter(i => i.categoria === cat);
+if (btnExportWhatsapp) {
+    btnExportWhatsapp.addEventListener('click', () => {
+        const month = filterMonth.value;
+        const items = currentItems.filter(item => item.mesReferencia === month);
         
-        itemsCat.forEach(item => {
-            const check = item.status === 'Comprado' ? '✅' : '⏳';
-            const valTotal = (item.quantidade * item.valor);
-            totalGeral += valTotal;
-            message += `${check} ${item.nome} - ${item.quantidade}${item.unidade} (R$ ${valTotal.toFixed(2)})\n`;
+        if(items.length === 0) {
+            showToast('Não há itens para exportar neste mês.', 'error');
+            return;
+        }
+
+        let message = `*🛒 Lista de Compras (${month})*\n\n`;
+        
+        const categorias = [...new Set(items.map(i => i.categoria))];
+        
+        let totalGeral = 0;
+
+        categorias.forEach(cat => {
+            message += `*_${cat}_*\n`;
+            const itemsCat = items.filter(i => i.categoria === cat);
+            
+            itemsCat.forEach(item => {
+                const check = item.status === 'Comprado' ? '✅' : '⏳';
+                const valTotal = (item.quantidade * item.valor);
+                totalGeral += valTotal;
+                message += `${check} ${item.nome} - ${item.quantidade}${item.unidade} (R$ ${valTotal.toFixed(2)})\n`;
+            });
+            message += `\n`;
         });
-        message += `\n`;
+
+        message += `*💰 Total Estimado: R$ ${totalGeral.toFixed(2)}*\n`;
+
+        const encodedMsg = encodeURIComponent(message);
+        window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
     });
-
-    message += `*💰 Total Estimado: R$ ${totalGeral.toFixed(2)}*\n`;
-
-    const encodedMsg = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
-});
+}
 
 
 // EVENTOS DE FILTRO
