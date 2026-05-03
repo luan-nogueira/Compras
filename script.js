@@ -78,6 +78,12 @@ const btnCloseSettings = document.getElementById('btnCloseSettings');
 const shareLinkInput = document.getElementById('shareLinkInput');
 const btnCopyShareLink = document.getElementById('btnCopyShareLink');
 
+// Modal Confirmação
+const confirmModal = document.getElementById('confirmModal');
+const btnCancelConfirm = document.getElementById('btnCancelConfirm');
+const btnConfirmAction = document.getElementById('btnConfirmAction');
+let itemToDelete = null;
+
 // App Elements
 const productForm = document.getElementById('productForm');
 const productsList = document.getElementById('productsList');
@@ -557,15 +563,40 @@ window.editItem = (id) => {
     document.getElementById('cadastro').scrollIntoView({ behavior: 'smooth' });
 };
 
-window.deleteItem = async (id) => {
+window.deleteItem = (id) => {
     if (isVisitor) return;
-    if (confirm('Tem certeza que deseja excluir este item?')) {
-        try {
-            await deleteDoc(doc(db, "compras", id));
-            showToast('Item excluído com sucesso');
-        } catch(err) { showToast('Erro ao excluir item', 'error'); }
-    }
+    itemToDelete = id;
+    confirmModal.classList.add('active');
 };
+
+if (btnCancelConfirm) {
+    btnCancelConfirm.addEventListener('click', () => {
+        itemToDelete = null;
+        confirmModal.classList.remove('active');
+    });
+}
+
+if (btnConfirmAction) {
+    btnConfirmAction.addEventListener('click', async () => {
+        if (!itemToDelete || isVisitor) return;
+        const btn = btnConfirmAction;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Excluindo...';
+        
+        try {
+            await deleteDoc(doc(db, "compras", itemToDelete));
+            showToast('Item excluído com sucesso');
+        } catch(err) { 
+            showToast('Erro ao excluir item. Atualize as regras do Firebase.', 'error'); 
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            confirmModal.classList.remove('active');
+            itemToDelete = null;
+        }
+    });
+}
 
 document.getElementById('btnCancel').addEventListener('click', resetForm);
 

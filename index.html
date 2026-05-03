@@ -262,6 +262,21 @@
         </div>
     </div>
 
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem 1.5rem;">
+            <div style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem;">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Excluir Item?</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button id="btnCancelConfirm" class="btn btn-secondary">Cancelar</button>
+                <button id="btnConfirmAction" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Excluir</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
