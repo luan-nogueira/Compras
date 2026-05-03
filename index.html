@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Compras do Mês</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo"><i class="fas fa-shopping-cart"></i> Controle de Compras</h1>
+            <div class="nav-links" id="mainNav" style="display: none;">
+                <a href="#dashboard" class="active">Dashboard</a>
+                <a href="#lista">Lista</a>
+                <a href="#cadastro">Novo Item</a>
+                <button id="btnThemeToggle" class="btn-icon theme-toggle" title="Alternar Tema"><i class="fas fa-moon"></i></button>
+                <button id="btnLogout" class="btn btn-outline btn-sm"><i class="fas fa-sign-out-alt"></i> Sair</button>
+            </div>
+            <div class="nav-links" id="authNav">
+                 <button id="btnThemeToggleAuth" class="btn-icon theme-toggle" title="Alternar Tema"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Auth Section -->
+    <main class="container" id="authSection">
+        <div class="auth-container card">
+            <div class="auth-header">
+                <h2>Bem-vindo(a)!</h2>
+                <p>Faça login para gerenciar suas compras.</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Cadastrar</button>
+            </div>
+
+            <form id="loginForm" class="auth-form active">
+                <div class="form-group">
+                    <label for="loginEmail">E-mail</label>
+                    <input type="email" id="loginEmail" required placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Senha</label>
+                    <input type="password" id="loginPassword" required placeholder="Sua senha">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Entrar</button>
+            </form>
+
+            <form id="registerForm" class="auth-form" style="display: none;">
+                <div class="form-group">
+                    <label for="regEmail">E-mail</label>
+                    <input type="email" id="regEmail" required placeholder="seu@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Senha</label>
+                    <input type="password" id="regPassword" required minlength="6" placeholder="Mínimo 6 caracteres">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Criar Conta</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- App Section -->
+    <main class="container" id="appSection" style="display: none;">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section animate-fade-in">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-line"></i> Resumo do Mês</h2>
+                <div class="month-selector">
+                    <select id="filterMonthDashboard">
+                        <!-- Preenchido via JS -->
+                    </select>
+                </div>
+            </div>
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-icon blue"><i class="fas fa-calculator"></i></div>
+                    <div class="card-info">
+                        <span class="card-label">Total Previsto</span>
+                        <h3 id="totalPrevisto">R$ 0,00</h3>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon green"><i class="fas fa-check-circle"></i></div>
+                    <div class="card-info">
+                        <span class="card-label">Total Comprado</span>
+                        <h3 id="totalComprado">R$ 0,00</h3>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon orange"><i class="fas fa-clock"></i></div>
+                    <div class="card-info">
+                        <span class="card-label">Total Pendente</span>
+                        <h3 id="totalPendente">R$ 0,00</h3>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon purple"><i class="fas fa-tags"></i></div>
+                    <div class="card-info">
+                        <span class="card-label">Maior Gasto</span>
+                        <h3 id="maiorGastoCategoria">-</h3>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cadastro Section -->
+        <section id="cadastro" class="section animate-fade-in">
+            <div class="section-header">
+                <h2><i class="fas fa-plus-circle"></i> Cadastrar Produto</h2>
+            </div>
+            <div class="form-container">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nome">Nome do Produto</label>
+                            <input type="text" id="nome" required placeholder="Ex: Arroz 5kg">
+                        </div>
+                        <div class="form-group">
+                            <label for="categoria">Categoria</label>
+                            <select id="categoria" required>
+                                <option value="">Selecione...</option>
+                                <option value="Alimentação">Alimentação</option>
+                                <option value="Higiene">Higiene</option>
+                                <option value="Limpeza">Limpeza</option>
+                                <option value="Bebidas">Bebidas</option>
+                                <option value="Hortifruti">Hortifruti</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="quantidade">Quantidade</label>
+                            <input type="number" id="quantidade" step="0.01" required placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="unidade">Unidade</label>
+                            <select id="unidade" required>
+                                <option value="un">Unidade (un)</option>
+                                <option value="kg">Quilo (kg)</option>
+                                <option value="lt">Litro (lt)</option>
+                                <option value="pct">Pacote (pct)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="valor">Valor Estimado (R$)</label>
+                            <input type="number" id="valor" step="0.01" required placeholder="0,00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mesReferencia">Mês de Referência</label>
+                            <input type="month" id="mesReferencia" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status</label>
+                            <select id="status" required>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Comprado">Comprado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="observacao">Observação (Opcional)</label>
+                        <textarea id="observacao" rows="2" placeholder="Alguma nota importante..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="btnSave" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Produto</button>
+                        <button type="button" id="btnCancel" class="btn btn-secondary" style="display:none;"><i class="fas fa-times"></i> Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Lista Section -->
+        <section id="lista" class="section animate-fade-in">
+            <div class="section-header">
+                <h2><i class="fas fa-list-ul"></i> Lista de Compras</h2>
+                <div class="filters">
+                    <select id="filterMonth">
+                        <!-- Preenchido via JS -->
+                    </select>
+                    <select id="filterCategory">
+                        <option value="all">Todas Categorias</option>
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Higiene">Higiene</option>
+                        <option value="Limpeza">Limpeza</option>
+                        <option value="Bebidas">Bebidas</option>
+                        <option value="Hortifruti">Hortifruti</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                    <select id="filterStatus">
+                        <option value="all">Todos Status</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Comprado">Comprado</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-actions">
+                 <button id="btnExportWhatsapp" class="btn btn-outline" title="Exportar para o WhatsApp"><i class="fab fa-whatsapp"></i> Exportar Mês</button>
+            </div>
+
+            <div class="table-responsive">
+                <table id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th>Qtd/Un</th>
+                            <th>Valor</th>
+                            <th>Total</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsList">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="next-month-actions">
+                <button id="btnCopyNextMonth" class="btn btn-outline">
+                    <i class="fas fa-copy"></i> Copiar pendentes para o próximo mês
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
