@@ -60,6 +60,19 @@ const authSection = document.getElementById('authSection');
 const appSection = document.getElementById('appSection');
 const mainNav = document.getElementById('mainNav');
 const authNav = document.getElementById('authNav');
+const navLinks = document.querySelectorAll('.nav-links a');
+const sections = document.querySelectorAll('.section');
+
+// Registrar Service Worker para PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('SW registrado com sucesso!', reg);
+        }).catch(err => {
+            console.log('Erro ao registrar SW:', err);
+        });
+    });
+}
 
 // Forms Auth
 const loginForm = document.getElementById('loginForm');
@@ -88,19 +101,11 @@ let itemToDelete = null;
 const productForm = document.getElementById('productForm');
 const productsList = document.getElementById('productsList');
 const filterMonth = document.getElementById('filterMonth');
-const filterMonthDashboard = document.getElementById('filterMonthDashboard');
 const filterCategory = document.getElementById('filterCategory');
 const filterStatus = document.getElementById('filterStatus');
 const btnCopyNextMonth = document.getElementById('btnCopyNextMonth');
 const btnExportWhatsapp = document.getElementById('btnExportWhatsapp');
 const selectCategoriaForm = document.getElementById('categoria');
-
-// Dashboard Orçamento
-const orcamentoInput = document.getElementById('orcamentoInput');
-const gastoRealInput = document.getElementById('gastoRealInput');
-const btnSaveOrcamento = document.getElementById('btnSaveOrcamento');
-const btnSaveGastoReal = document.getElementById('btnSaveGastoReal');
-const saldoRestante = document.getElementById('saldoRestante');
 
 // Categorias Padrões
 const defaultCategories = ["Alimentação", "Higiene", "Limpeza", "Bebidas", "Hortifruti", "Outros"];
@@ -134,6 +139,35 @@ function initTheme() {
 function updateThemeIcons(theme) {
     btnThemeToggles.forEach(btn => {
         btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    });
+}
+
+// Navegação entre seções
+navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('href').substring(1);
+        navigateToSection(targetId);
+    });
+});
+
+function navigateToSection(id) {
+    // Atualiza links
+    navLinks.forEach(link => {
+        if (link.getAttribute('href') === `#${id}`) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
+
+    // Atualiza seções
+    sections.forEach(section => {
+        if (section.id === id) {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
     });
 }
 
@@ -207,17 +241,14 @@ function initAuthOrVisitor() {
             document.getElementById('cadastro').style.display = 'block';
             document.getElementById('btnCopyNextMonth').style.display = 'inline-flex';
             
-            orcamentoInput.readOnly = false;
-            gastoRealInput.readOnly = false;
-            btnSaveOrcamento.style.display = 'inline-flex';
-            btnSaveGastoReal.style.display = 'inline-flex';
-
             authSection.style.display = 'none';
             authNav.style.display = 'none';
             appSection.style.display = 'block';
             mainNav.style.display = 'flex';
             
-            loadBudgetData(filterMonthDashboard.value);
+            // Navega para a aba Lista por padrão
+            navigateToSection('lista');
+            
             listenToCategories();
             listenToData();
         } else {
@@ -291,71 +322,6 @@ if(btnLogout) {
 }
 
 // ==========================================
-// ORÇAMENTO (BUDGET)
-// ==========================================
-async function loadBudgetData(monthStr) {
-    if (!currentUser || !listOwnerId) return;
-    const docRef = doc(db, "orcamentos", `${listOwnerId}_${monthStr}`);
-    try {
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            orcamentoInput.value = docSnap.data().orcamento || '';
-            gastoRealInput.value = docSnap.data().gastoReal || '';
-        } else {
-            orcamentoInput.value = '';
-            gastoRealInput.value = '';
-        }
-        updateSaldoVisual();
-    } catch (err) {
-        console.error("Erro ao carregar orçamento", err);
-    }
-}
-
-async function saveBudgetData(monthStr, field, value) {
-    if (!currentUser || !listOwnerId) return;
-    const docRef = doc(db, "orcamentos", `${listOwnerId}_${monthStr}`);
-    try {
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            await updateDoc(docRef, { [field]: value });
-        } else {
-            await setDoc(docRef, { userId: listOwnerId, mes: monthStr, [field]: value });
-        }
-        showToast('Valor salvo!');
-        updateSaldoVisual();
-    } catch (err) {
-        showToast('Erro ao salvar valor.', 'error');
-    }
-}
-
-btnSaveOrcamento.addEventListener('click', () => {
-    saveBudgetData(filterMonthDashboard.value, 'orcamento', Number(orcamentoInput.value));
-});
-btnSaveGastoReal.addEventListener('click', () => {
-    saveBudgetData(filterMonthDashboard.value, 'gastoReal', Number(gastoRealInput.value));
-});
-
-function updateSaldoVisual() {
-    const orc = Number(orcamentoInput.value);
-    const gasto = Number(gastoRealInput.value);
-    if(orc > 0) {
-        const diff = orc - gasto;
-        if(diff >= 0) {
-            saldoRestante.innerHTML = `Restam <strong style="color:var(--success)">R$ ${diff.toFixed(2)}</strong> do orçamento.`;
-        } else {
-            saldoRestante.innerHTML = `Passou <strong style="color:var(--danger)">R$ ${Math.abs(diff).toFixed(2)}</strong> do orçamento!`;
-        }
-    } else {
-        saldoRestante.innerHTML = '';
-    }
-}
-
-filterMonthDashboard.addEventListener('change', () => {
-    loadBudgetData(filterMonthDashboard.value);
-    render();
-});
-
-// ==========================================
 // CATEGORIAS PERSONALIZADAS
 // ==========================================
 function listenToCategories() {
@@ -414,7 +380,6 @@ function setupMonthFilters() {
     }
     const options = months.map(m => `<option value="${m}" ${m === currentMonthStr ? 'selected' : ''}>${m}</option>`).join('');
     filterMonth.innerHTML = options;
-    filterMonthDashboard.innerHTML = options;
     document.getElementById('mesReferencia').value = currentMonthStr;
 }
 
@@ -444,7 +409,6 @@ function render() {
     });
 
     renderTable(filtered);
-    updateDashboard(currentItems.filter(item => item.mesReferencia === filterMonthDashboard.value));
 }
 
 function renderTable(items) {
@@ -472,15 +436,6 @@ function renderTable(items) {
     if (items.length === 0) {
         productsList.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">Nenhum item encontrado para este mês.</td></tr>';
     }
-}
-
-function updateDashboard(items) {
-    const totais = items.length;
-    const comprados = items.filter(i => i.status === 'Comprado').length;
-    
-    document.getElementById('totalItens').innerText = totais;
-    document.getElementById('progressoItens').innerText = `${comprados} / ${totais}`;
-    document.getElementById('itensComprados').innerText = comprados;
 }
 
 productForm.addEventListener('submit', async (e) => {

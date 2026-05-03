@@ -9,14 +9,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Compras LM">
 <body>
     <nav class="navbar">
         <div class="container">
             <h1 class="logo"><i class="fas fa-shopping-cart"></i> Controle de Compras</h1>
             <div class="nav-links" id="mainNav" style="display: none;">
-                <a href="#dashboard" class="active">Dashboard</a>
-                <a href="#lista">Lista</a>
+                <a href="#lista" class="active">Lista</a>
                 <a href="#cadastro">Novo Item</a>
                 <button id="btnThemeToggle" class="btn-icon theme-toggle" title="Alternar Tema"><i class="fas fa-moon"></i></button>
                 <button id="btnSettings" class="btn btn-outline btn-sm" title="Configurações"><i class="fas fa-cog"></i></button>
@@ -69,63 +74,6 @@
 
     <!-- App Section -->
     <main class="container" id="appSection" style="display: none;">
-        <!-- Dashboard Section -->
-        <section id="dashboard" class="section animate-fade-in">
-            <div class="section-header">
-                <h2><i class="fas fa-chart-line"></i> Resumo do Mês</h2>
-                <div class="month-selector">
-                    <select id="filterMonthDashboard">
-                        <!-- Preenchido via JS -->
-                    </select>
-                </div>
-            </div>
-            <div class="dashboard-grid">
-                <!-- Orçamento / Meta -->
-                <div class="card">
-                    <div class="card-icon blue"><i class="fas fa-wallet"></i></div>
-                    <div class="card-info" style="width: 100%;">
-                        <span class="card-label">Orçamento / Meta (R$)</span>
-                        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
-                            <input type="number" id="orcamentoInput" step="0.01" placeholder="0.00" style="width: 100%; padding: 0.25rem 0.5rem; font-size: 1.25rem; font-weight: 700; border-color: transparent; border-bottom: 2px solid var(--border-color); border-radius: 0; background: transparent;">
-                            <button id="btnSaveOrcamento" class="btn btn-primary btn-sm" title="Salvar Orçamento"><i class="fas fa-save"></i></button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Gasto Real -->
-                <div class="card">
-                    <div class="card-icon green"><i class="fas fa-receipt"></i></div>
-                    <div class="card-info" style="width: 100%;">
-                        <span class="card-label">Gasto Real / Nota (R$)</span>
-                        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
-                            <input type="number" id="gastoRealInput" step="0.01" placeholder="0.00" style="width: 100%; padding: 0.25rem 0.5rem; font-size: 1.25rem; font-weight: 700; border-color: transparent; border-bottom: 2px solid var(--border-color); border-radius: 0; background: transparent;">
-                            <button id="btnSaveGastoReal" class="btn btn-primary btn-sm" title="Salvar Gasto Real"><i class="fas fa-save"></i></button>
-                        </div>
-                        <small id="saldoRestante" style="display: block; margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);"></small>
-                    </div>
-                </div>
-
-                <!-- Itens -->
-                <div class="card">
-                    <div class="card-icon orange"><i class="fas fa-list-ul"></i></div>
-                    <div class="card-info">
-                        <span class="card-label">Total de Itens</span>
-                        <h3 id="totalItens">0</h3>
-                    </div>
-                </div>
-
-                <!-- Status dos Itens -->
-                <div class="card">
-                    <div class="card-icon purple"><i class="fas fa-check-double"></i></div>
-                    <div class="card-info">
-                        <span class="card-label">Progresso</span>
-                        <h3 id="progressoItens">0 / 0</h3>
-                        <small style="color: var(--success);"><i class="fas fa-check"></i> <span id="itensComprados">0</span> comprados</small>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <!-- Cadastro Section -->
         <section id="cadastro" class="section animate-fade-in">
             <div class="section-header">
@@ -251,12 +199,31 @@
                 <div class="form-group">
                     <label>Link de Compartilhamento (Modo Visitante)</label>
                     <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                        Envie este link para alguém. A pessoa precisará fazer login ou criar uma conta para ver sua lista e marcar itens como comprados.
+                        Envie este link para alguém. A pessoa precisará fazer login ou criar uma conta para ver sua lista.
                     </p>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
                         <input type="text" id="shareLinkInput" readonly style="flex: 1; background: var(--bg-color);">
                         <button id="btnCopyShareLink" class="btn btn-primary"><i class="fas fa-copy"></i></button>
                     </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem; background: var(--bg-color); padding: 1rem; border-radius: 8px;">
+                    <label style="margin-bottom: 0.5rem;"><i class="fas fa-download"></i> Como Instalar o Aplicativo</label>
+                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.8rem;">
+                        Instale este sistema na tela inicial do seu celular para acesso rápido.
+                    </p>
+                    
+                    <strong style="display: block; font-size: 0.85rem; color: var(--text-color); margin-bottom: 0.3rem;">📱 No Android (Chrome):</strong>
+                    <ul style="font-size: 0.85rem; color: var(--text-muted); margin-left: 1.2rem; margin-bottom: 1rem;">
+                        <li>Toque nos três pontinhos (⋮) no canto superior.</li>
+                        <li>Selecione <strong>"Adicionar à Tela Inicial"</strong> ou <strong>"Instalar aplicativo"</strong>.</li>
+                    </ul>
+
+                    <strong style="display: block; font-size: 0.85rem; color: var(--text-color); margin-bottom: 0.3rem;">🍏 No iPhone (Safari):</strong>
+                    <ul style="font-size: 0.85rem; color: var(--text-muted); margin-left: 1.2rem;">
+                        <li>Toque no botão de Compartilhar <i class="fas fa-external-link-alt"></i>.</li>
+                        <li>Selecione <strong>"Adicionar à Tela de Início"</strong> <i class="fas fa-plus-square"></i>.</li>
+                    </ul>
                 </div>
             </div>
         </div>
