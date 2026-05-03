@@ -50,10 +50,9 @@ let editId = null;
 let unsubscribeSnapshot = null;
 let unsubscribeCats = null;
 
-// Modo visitante e ID do dono da lista
+// ID do dono da lista (Modo Família)
 const urlParams = new URLSearchParams(window.location.search);
 const viewUserId = urlParams.get('view');
-let isVisitor = false;
 let listOwnerId = null;
 
 // ELEMENTOS DO DOM
@@ -161,9 +160,9 @@ function showToast(message, type = 'success') {
 // ==========================================
 if (btnSettings) {
     btnSettings.addEventListener('click', () => {
-        if (!currentUser || isVisitor) return;
+        if (!currentUser || !listOwnerId) return;
         const currentUrl = window.location.origin + window.location.pathname;
-        shareLinkInput.value = `${currentUrl}?view=${currentUser.uid}`;
+        shareLinkInput.value = `${currentUrl}?view=${listOwnerId}`;
         settingsModal.classList.add('active');
     });
 }
@@ -185,45 +184,33 @@ if (btnCopyShareLink) {
 }
 
 // ==========================================
-// AUTENTICAÇÃO E VISITANTE
+// AUTENTICAÇÃO E VISITANTE (Modo Família)
 // ==========================================
 function initAuthOrVisitor() {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             currentUser = user;
             
-            // Verifica se está acessando a lista de outra pessoa
-            if (viewUserId && viewUserId !== user.uid) {
-                isVisitor = true;
+            // Define de quem é a lista sendo acessada
+            if (viewUserId) {
                 listOwnerId = viewUserId;
-                
-                // Configuração da UI para o visitante
-                document.querySelector('a[href="#cadastro"]').style.display = 'none';
-                if(btnSettings) btnSettings.style.display = 'none';
-                document.getElementById('cadastro').style.display = 'none';
-                document.getElementById('btnCopyNextMonth').style.display = 'none';
-                
-                orcamentoInput.readOnly = true;
-                gastoRealInput.readOnly = true;
-                btnSaveOrcamento.style.display = 'none';
-                btnSaveGastoReal.style.display = 'none';
-                
-                showToast('Visualizando lista compartilhada');
+                if (viewUserId !== user.uid) {
+                    showToast('Modo Família: Acesso Compartilhado');
+                }
             } else {
-                isVisitor = false;
                 listOwnerId = user.uid;
-                
-                // Configuração da UI para o dono da lista
-                document.querySelector('a[href="#cadastro"]').style.display = 'block';
-                if(btnSettings) btnSettings.style.display = 'inline-flex';
-                document.getElementById('cadastro').style.display = 'block';
-                document.getElementById('btnCopyNextMonth').style.display = 'inline-flex';
-                
-                orcamentoInput.readOnly = false;
-                gastoRealInput.readOnly = false;
-                btnSaveOrcamento.style.display = 'inline-flex';
-                btnSaveGastoReal.style.display = 'inline-flex';
             }
+
+            // Garante que toda a UI está visível (Acesso Total para o Grupo)
+            document.querySelector('a[href="#cadastro"]').style.display = 'block';
+            if(btnSettings) btnSettings.style.display = 'inline-flex';
+            document.getElementById('cadastro').style.display = 'block';
+            document.getElementById('btnCopyNextMonth').style.display = 'inline-flex';
+            
+            orcamentoInput.readOnly = false;
+            gastoRealInput.readOnly = false;
+            btnSaveOrcamento.style.display = 'inline-flex';
+            btnSaveGastoReal.style.display = 'inline-flex';
 
             authSection.style.display = 'none';
             authNav.style.display = 'none';
@@ -235,7 +222,6 @@ function initAuthOrVisitor() {
             listenToData();
         } else {
             currentUser = null;
-            isVisitor = false;
             listOwnerId = null;
             
             authSection.style.display = 'block';
@@ -326,14 +312,14 @@ async function loadBudgetData(monthStr) {
 }
 
 async function saveBudgetData(monthStr, field, value) {
-    if (!currentUser || isVisitor) return;
-    const docRef = doc(db, "orcamentos", `${currentUser.uid}_${monthStr}`);
+    if (!currentUser || !listOwnerId) return;
+    const docRef = doc(db, "orcamentos", `${listOwnerId}_${monthStr}`);
     try {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             await updateDoc(docRef, { [field]: value });
         } else {
-            await setDoc(docRef, { userId: currentUser.uid, mes: monthStr, [field]: value });
+            await setDoc(docRef, { userId: listOwnerId, mes: monthStr, [field]: value });
         }
         showToast('Valor salvo!');
         updateSaldoVisual();
@@ -383,13 +369,11 @@ function listenToCategories() {
 }
 
 function renderCategorySelects() {
-    // Para o filtro da lista
     const currentFilterVal = filterCategory.value;
     filterCategory.innerHTML = `<option value="all">Todas Categorias</option>` + 
         currentCategories.map(c => `<option value="${c}">${c}</option>`).join('');
     filterCategory.value = currentCategories.includes(currentFilterVal) ? currentFilterVal : 'all';
 
-    // Para o formulário
     const currentFormVal = selectCategoriaForm.value;
     selectCategoriaForm.innerHTML = `<option value="">Selecione...</option>` + 
         currentCategories.map(c => `<option value="${c}">${c}</option>`).join('') +
@@ -404,10 +388,9 @@ selectCategoriaForm.addEventListener('change', async (e) => {
             try {
                 await addDoc(categoriasCol, {
                     nome: novaCat.trim(),
-                    userId: currentUser.uid
+                    userId: listOwnerId
                 });
                 showToast('Categoria adicionada!');
-                // Voltar valor para vazio enquanto atualiza o onSnapshot
                 selectCategoriaForm.value = '';
             } catch (err) {
                 showToast('Erro ao criar categoria', 'error');
@@ -440,7 +423,6 @@ function listenToData() {
     const q = query(comprasCol, where("userId", "==", listOwnerId));
     unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         currentItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Ordenar no frontend para evitar a necessidade de Índice Composto no Firebase
         currentItems.sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
         render();
     }, (error) => {
@@ -480,10 +462,8 @@ function renderTable(items) {
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
                         <i class="fas ${item.status === 'Comprado' ? 'fa-undo' : 'fa-check'}"></i>
                     </button>
-                    ${!isVisitor ? `
                     <button onclick="editItem('${item.id}')" class="btn-icon btn-edit" title="Editar"><i class="fas fa-edit"></i></button>
                     <button onclick="deleteItem('${item.id}')" class="btn-icon btn-delete" title="Excluir"><i class="fas fa-trash"></i></button>
-                    ` : ''}
                 </div>
             </td>
         </tr>
@@ -505,7 +485,7 @@ function updateDashboard(items) {
 
 productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!currentUser || isVisitor) return;
+    if (!currentUser || !listOwnerId) return;
     
     const catForm = document.getElementById('categoria').value;
     if(catForm === 'nova' || !catForm) {
@@ -526,7 +506,7 @@ productForm.addEventListener('submit', async (e) => {
         status: document.getElementById('status').value,
         observacao: document.getElementById('observacao').value,
         dataCriacao: isEditing ? (currentItems.find(i => i.id === editId)?.dataCriacao || new Date().toISOString()) : new Date().toISOString(),
-        userId: currentUser.uid
+        userId: listOwnerId // SALVA NA LISTA DO DONO
     };
 
     try {
@@ -541,7 +521,7 @@ productForm.addEventListener('submit', async (e) => {
             setupMonthFilters(); 
         }
     } catch (error) {
-        showToast('Erro ao salvar os dados.', 'error');
+        showToast('Erro ao salvar os dados. Atualize o Firebase.', 'error');
     } finally {
         btn.disabled = false; btn.innerHTML = originalText;
     }
@@ -558,7 +538,6 @@ window.toggleStatus = async (id, currentStatus) => {
 };
 
 window.editItem = (id) => {
-    if (isVisitor) return;
     const item = currentItems.find(i => i.id === id);
     if (!item) return;
 
@@ -578,7 +557,6 @@ window.editItem = (id) => {
 };
 
 window.deleteItem = (id) => {
-    if (isVisitor) return;
     itemToDelete = id;
     confirmModal.classList.add('active');
 };
@@ -592,7 +570,7 @@ if (btnCancelConfirm) {
 
 if (btnConfirmAction) {
     btnConfirmAction.addEventListener('click', async () => {
-        if (!itemToDelete || isVisitor) return;
+        if (!itemToDelete) return;
         const btn = btnConfirmAction;
         const originalText = btn.innerHTML;
         btn.disabled = true;
@@ -624,7 +602,6 @@ function resetForm() {
 
 if (btnCopyNextMonth) {
     btnCopyNextMonth.addEventListener('click', async () => {
-        if (isVisitor) return;
         const currentMonth = filterMonth.value;
         const itemsToCopy = currentItems.filter(item => item.mesReferencia === currentMonth && item.status === 'Pendente');
 
@@ -641,7 +618,6 @@ if (btnCopyNextMonth) {
                 for (const item of itemsToCopy) {
                     const { id, dataCriacao, ...rest } = item;
                     await addDoc(comprasCol, { ...rest, mesReferencia: nextMonthStr, status: 'Pendente', dataCriacao: new Date().toISOString() });
-                    // Remove do mes atual para evitar duplicidade real
                     await deleteDoc(doc(db, "compras", id));
                 }
                 showToast('Itens transferidos!');
