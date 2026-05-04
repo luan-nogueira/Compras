@@ -45,6 +45,7 @@ const orcamentosCol = collection(db, "orcamentos");
 let currentUser = null;
 let currentItems = [];
 let currentCategories = [];
+let currentBudget = 0;
 let isEditing = false;
 let editId = null;
 let unsubscribeSnapshot = null;
@@ -106,6 +107,12 @@ const filterStatus = document.getElementById('filterStatus');
 const btnCopyNextMonth = document.getElementById('btnCopyNextMonth');
 const btnExportWhatsapp = document.getElementById('btnExportWhatsapp');
 const selectCategoriaForm = document.getElementById('categoria');
+const inputBudget = document.getElementById('inputBudget');
+const totalPrevistoEl = document.getElementById('totalPrevisto');
+const totalCompradoEl = document.getElementById('totalComprado');
+const balanceValueEl = document.getElementById('balanceValue');
+const balanceLabelEl = document.getElementById('balanceLabel');
+const balanceCardEl = document.getElementById('balanceCard');
 
 // Categorias Padrões
 const defaultCategories = ["Alimentação", "Higiene", "Limpeza", "Bebidas", "Hortifruti", "Outros"];
@@ -251,6 +258,7 @@ function initAuthOrVisitor() {
             
             listenToCategories();
             listenToData();
+            loadBudget();
         } else {
             currentUser = null;
             listOwnerId = null;
@@ -409,10 +417,76 @@ function render() {
     });
 
     renderTable(filtered);
+    updateFinanceDashboard(filtered);
+}
+
+async function loadBudget() {
+    if (!currentUser || !listOwnerId) return;
+    const month = filterMonth.value;
+    const docId = `${listOwnerId}_${month}`;
+    try {
+        const docSnap = await getDoc(doc(db, "orcamentos", docId));
+        if (docSnap.exists()) {
+            currentBudget = docSnap.data().valor || 0;
+            inputBudget.value = currentBudget.toFixed(2);
+        } else {
+            currentBudget = 0;
+            inputBudget.value = '';
+        }
+        render(); // Re-render para atualizar o saldo
+    } catch (err) {
+        console.error("Erro ao carregar orçamento:", err);
+    }
+}
+
+inputBudget.addEventListener('change', async () => {
+    if (!currentUser || !listOwnerId) return;
+    const month = filterMonth.value;
+    const valor = parseFloat(inputBudget.value) || 0;
+    const docId = `${listOwnerId}_${month}`;
+
+    try {
+        await setDoc(doc(db, "orcamentos", docId), {
+            valor: valor,
+            userId: listOwnerId,
+            mes: month
+        });
+        currentBudget = valor;
+        render();
+        showToast('Orçamento atualizado!');
+    } catch (err) {
+        showToast('Erro ao salvar orçamento.', 'error');
+    }
+});
+
+function updateFinanceDashboard(items) {
+    const totalPrevisto = items.reduce((acc, item) => acc + ((item.valorUnitario || 0) * (item.quantidade || 0)), 0);
+    const totalComprado = items.reduce((acc, item) => {
+        if (item.status === 'Comprado') {
+            return acc + ((item.valorUnitario || 0) * (item.quantidade || 0));
+        }
+        return acc;
+    }, 0);
+
+    const saldo = currentBudget - totalPrevisto;
+
+    totalPrevistoEl.innerText = `R$ ${totalPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    totalCompradoEl.innerText = `R$ ${totalComprado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    balanceValueEl.innerText = `R$ ${Math.abs(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+    if (saldo >= 0) {
+        balanceLabelEl.innerText = 'Saldo Restante';
+        balanceCardEl.className = 'finance-card positive';
+    } else {
+        balanceLabelEl.innerText = 'Falta Inteirar';
+        balanceCardEl.className = 'finance-card negative';
+    }
 }
 
 function renderTable(items) {
-    productsList.innerHTML = items.map(item => `
+    productsList.innerHTML = items.map(item => {
+        const itemTotal = (item.valorUnitario || 0) * (item.quantidade || 0);
+        return `
         <tr class="animate-fade-in">
             <td data-label="Status"><span class="status-badge ${item.status.toLowerCase()}">${item.status}</span></td>
             <td data-label="Produto">
@@ -421,6 +495,7 @@ function renderTable(items) {
             </td>
             <td data-label="Categoria">${item.categoria}</td>
             <td data-label="Qtd/Un">${item.quantidade} ${item.unidade}</td>
+            <td data-label="Total">R$ ${itemTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
             <td data-label="Ações">
                 <div class="actions">
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
@@ -431,10 +506,10 @@ function renderTable(items) {
                 </div>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 
     if (items.length === 0) {
-        productsList.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">Nenhum item encontrado para este mês.</td></tr>';
+        productsList.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">Nenhum item encontrado para este mês.</td></tr>';
     }
 }
 
@@ -457,6 +532,7 @@ productForm.addEventListener('submit', async (e) => {
         categoria: catForm,
         quantidade: Number(document.getElementById('quantidade').value),
         unidade: document.getElementById('unidade').value,
+        valorUnitario: Number(document.getElementById('valorUnitario').value) || 0,
         mesReferencia: document.getElementById('mesReferencia').value,
         status: document.getElementById('status').value,
         observacao: document.getElementById('observacao').value,
@@ -501,6 +577,7 @@ window.editItem = (id) => {
     document.getElementById('categoria').value = item.categoria;
     document.getElementById('quantidade').value = item.quantidade;
     document.getElementById('unidade').value = item.unidade;
+    document.getElementById('valorUnitario').value = item.valorUnitario || '';
     document.getElementById('mesReferencia').value = item.mesReferencia;
     document.getElementById('status').value = item.status;
     document.getElementById('observacao').value = item.observacao || '';
@@ -587,6 +664,7 @@ if (btnCopyNextMonth) {
     });
 }
 
+
 if (btnExportWhatsapp) {
     btnExportWhatsapp.addEventListener('click', () => {
         const month = filterMonth.value;
@@ -596,22 +674,40 @@ if (btnExportWhatsapp) {
 
         let message = `*🛒 Lista de Compras (${month})*\n\n`;
         const categoriasAtuais = [...new Set(items.map(i => i.categoria))];
+        let totalGeral = 0;
         
         categoriasAtuais.forEach(cat => {
             message += `*_${cat}_*\n`;
             const itemsCat = items.filter(i => i.categoria === cat);
             itemsCat.forEach(item => {
                 const check = item.status === 'Comprado' ? '✅' : '⏳';
-                message += `${check} ${item.nome} - ${item.quantidade}${item.unidade}\n`;
+                const itemTotal = (item.valorUnitario || 0) * (item.quantidade || 0);
+                totalGeral += itemTotal;
+                
+                message += `${check} ${item.nome} - ${item.quantidade}${item.unidade}`;
+                if (item.valorUnitario > 0) {
+                    message += ` (R$ ${item.valorUnitario.toFixed(2)} un. | Total: R$ ${itemTotal.toFixed(2)})`;
+                }
+                message += `\n`;
             });
             message += `\n`;
         });
+
+        message += `*Total Previsto: R$ ${totalGeral.toFixed(2)}*`;
+        if (currentBudget > 0) {
+            message += `\n*Orçamento: R$ ${currentBudget.toFixed(2)}*`;
+            const saldo = currentBudget - totalGeral;
+            message += `\n*${saldo >= 0 ? 'Saldo' : 'Diferença'}: R$ ${Math.abs(saldo).toFixed(2)}*`;
+        }
 
         const encodedMsg = encodeURIComponent(message);
         window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
     });
 }
 
-filterMonth.addEventListener('change', render);
+filterMonth.addEventListener('change', () => {
+    loadBudget();
+    render();
+});
 filterCategory.addEventListener('change', render);
 filterStatus.addEventListener('change', render);

@@ -492,6 +492,72 @@ td {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Finance Dashboard */
+.finance-dashboard {
+    margin-bottom: 2rem;
+    background: var(--bg-color);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.finance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.finance-card {
+    background: var(--card-bg);
+    padding: 1.25rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.finance-card:hover {
+    transform: translateY(-3px);
+}
+
+.finance-card.budget {
+    border-left: 4px solid var(--primary-color);
+}
+
+.finance-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 0.25rem;
+}
+
+.budget-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.budget-input-wrapper span {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.budget-input-wrapper input {
+    width: 100%;
+    padding: 0.5rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border: 1px dashed var(--primary-color);
+    background: transparent;
+}
+
+#balanceCard.positive { border-left: 4px solid var(--success); }
+#balanceCard.positive h3 { color: var(--success); }
+#balanceCard.negative { border-left: 4px solid var(--danger); }
+#balanceCard.negative h3 { color: var(--danger); }
+
 /* Responsive */
 @media (max-width: 768px) {
     .container {
@@ -550,6 +616,23 @@ td {
 
     .filters select {
         width: 100%;
+    }
+
+    .finance-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .finance-card {
+        padding: 1rem;
+    }
+
+    .finance-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .finance-card.budget {
+        grid-column: span 2;
     }
 
     .form-row {
