@@ -734,11 +734,11 @@ td {
     tr {
         background: var(--card-bg);
         border-bottom: 1px solid var(--border-color);
-        padding: 0.5rem;
-        display: grid;
-        grid-template-columns: 35px 1fr 80px 35px 35px;
+        padding: 0.75rem 0.5rem;
+        display: flex;
         align-items: center;
-        gap: 0.4rem;
+        gap: 0.5rem;
+        width: 100%;
     }
 
     td {
@@ -759,16 +759,27 @@ td {
         display: none; /* Esconder labels em formato de lista */
     }
 
-    /* Posicionamento específico das colunas */
-    td[data-label="Status"] { grid-column: 1; }
-    td[data-label="Produto"] { grid-column: 2; }
-    td[data-label="Categoria"], td[data-label="Qtd/Un"], td[data-label="Total"] { display: none; } /* Esconder detalhes secundários para compactar */
-    td[data-label="Ações"] { grid-column: 3 / span 2; }
+    /* Esconder colunas redundantes no mobile */
+    td[data-label="Status"], 
+    td[data-label="Categoria"], 
+    td[data-label="Qtd/Un"], 
+    td[data-label="Total"] { 
+        display: none; 
+    }
+
+    td[data-label="Produto"] {
+        flex: 1;
+        min-width: 0;
+    }
+
+    td[data-label="Ações"] {
+        display: flex;
+        align-items: center;
+    }
 
     td:last-child {
-        border-top: 1px solid var(--border-color);
-        margin-top: 0.5rem;
-        padding-top: 1rem;
+        margin-top: 0;
+        padding: 0;
         justify-content: center;
     }
 
@@ -777,51 +788,53 @@ td {
     }
 
     .actions {
-        display: contents; /* Faz com que os filhos do .actions participem do grid do tr */
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
     }
 
     .quick-price-field {
-        grid-column: 3;
-        padding: 0.2rem;
+        width: 75px;
+        padding: 0.25rem 0.4rem;
         background: var(--bg-color);
         border-radius: 4px;
         border: 1px solid var(--border-color);
     }
 
-    .quick-price-field span { display: none; } /* Esconder R$ para ganhar espaço */
+    .quick-price-field span { display: none; }
 
     .quick-price-field input {
         width: 100%;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         text-align: center;
+        font-weight: 700;
+        color: var(--primary-color);
     }
 
     .actions .btn-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 0.9rem;
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        border-radius: 6px;
+        background: var(--bg-color);
     }
 
-    .actions .btn-check { grid-column: 1; }
-    .actions .btn-edit { grid-column: 4; display: flex; }
-    .actions .btn-delete { grid-column: 5; display: flex; }
+    .btn-check { color: var(--success); }
+    .btn-edit { color: var(--card-blue-text); }
+    .btn-delete { color: var(--danger); }
     
-    td[data-label="Produto"] {
-        grid-column: 2;
-        overflow: hidden;
-    }
-
     td[data-label="Produto"] strong {
-        font-size: 0.85rem;
+        font-size: 0.95rem;
         display: block;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: var(--text-main);
     }
     
     td[data-label="Produto"] small {
-        display: inline-block;
-        font-size: 0.7rem;
+        display: block;
+        font-size: 0.75rem;
         color: var(--text-muted);
     }
 
