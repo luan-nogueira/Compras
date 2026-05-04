@@ -50,6 +50,7 @@ let isEditing = false;
 let editId = null;
 let unsubscribeSnapshot = null;
 let unsubscribeCats = null;
+let saveTimeout = null;
 
 // ID do dono da lista (Modo Família)
 const urlParams = new URLSearchParams(window.location.search);
@@ -518,7 +519,7 @@ function renderTable(items) {
                     <div class="quick-price-field" title="Preço Rápido">
                         <span>R$</span>
                         <input type="number" step="0.01" value="${item.valorUnitario || ''}" 
-                            onchange="updatePriceQuickly('${item.id}', this.value)" 
+                            oninput="debouncedUpdatePrice('${item.id}', this.value)" 
                             placeholder="0,00">
                     </div>
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
@@ -608,13 +609,31 @@ window.editItem = (id) => {
     editModal.classList.add('active');
 };
 
+window.debouncedUpdatePrice = (id, value) => {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        updatePriceQuickly(id, value);
+    }, 1000); // Salva após 1 segundo de inatividade
+};
+
 window.updatePriceQuickly = async (id, value) => {
     const price = parseFloat(value) || 0;
+    const item = currentItems.find(i => i.id === id);
+    if (!item) return;
+
     try {
-        await updateDoc(doc(db, "compras", id), { valorUnitario: price });
-        showToast('Preço atualizado!');
+        const updateData = { valorUnitario: price };
+        
+        // Inteligência: Se inseriu preço e estava pendente, marca como comprado
+        if (price > 0 && item.status === 'Pendente') {
+            updateData.status = 'Comprado';
+            showToast(`Produto marcado como comprado!`);
+        }
+
+        await updateDoc(doc(db, "compras", id), updateData);
+        // Não mostramos toast de "Preço atualizado" toda hora para não poluir
     } catch (err) {
-        showToast('Erro ao atualizar preço.', 'error');
+        showToast('Erro ao atualizar.', 'error');
     }
 };
 
