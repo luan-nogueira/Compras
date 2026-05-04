@@ -380,6 +380,68 @@ td {
 .btn-delete { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
 .btn-check { background: var(--card-green-bg); color: var(--card-green-text); }
 
+.quick-price-input {
+    width: 80px;
+    padding: 0.4rem;
+    font-size: 0.9rem;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    transition: all 0.2s;
+}
+
+.quick-price-input:focus {
+    border-color: var(--primary-color);
+    width: 100px;
+}
+
+.price-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 600;
+}
+
+.quick-price-field {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--bg-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.3s;
+}
+
+.quick-price-field:focus-within {
+    border-color: var(--primary-color);
+}
+
+.quick-price-field span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.quick-price-field input {
+    width: 60px;
+    padding: 0.15rem;
+    font-size: 0.85rem;
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    color: var(--text-main);
+    outline: none;
+}
+/* Estilo para remover as setinhas do input number */
+.quick-price-field input::-webkit-outer-spin-button,
+.quick-price-field input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .theme-toggle {
     font-size: 1.25rem;
 }
@@ -711,7 +773,22 @@ td {
 
     .actions {
         width: 100%;
-        justify-content: space-around;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .quick-price-field {
+        width: 100%;
+        justify-content: center;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .quick-price-field input {
+        width: 100px;
+        font-size: 1rem;
+        text-align: center;
     }
 
     .table-actions {

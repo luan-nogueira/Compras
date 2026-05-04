@@ -114,6 +114,12 @@ const balanceValueEl = document.getElementById('balanceValue');
 const balanceLabelEl = document.getElementById('balanceLabel');
 const balanceCardEl = document.getElementById('balanceCard');
 
+// Modal Editar
+const editModal = document.getElementById('editModal');
+const btnCloseEdit = document.getElementById('btnCloseEdit');
+const editProductForm = document.getElementById('editProductForm');
+const editCategoriaForm = document.getElementById('editCategoria');
+
 // Categorias Padrões
 const defaultCategories = ["Alimentação", "Higiene", "Limpeza", "Bebidas", "Hortifruti", "Outros"];
 
@@ -211,6 +217,12 @@ if (btnSettings) {
 if (btnCloseSettings) {
     btnCloseSettings.addEventListener('click', () => {
         settingsModal.classList.remove('active');
+    });
+}
+
+if (btnCloseEdit) {
+    btnCloseEdit.addEventListener('click', () => {
+        editModal.classList.remove('active');
     });
 }
 
@@ -353,6 +365,11 @@ function renderCategorySelects() {
         currentCategories.map(c => `<option value="${c}">${c}</option>`).join('') +
         `<option value="nova" style="font-weight: bold; color: var(--primary-color);">+ Adicionar Nova...</option>`;
     selectCategoriaForm.value = currentCategories.includes(currentFormVal) ? currentFormVal : '';
+
+    const currentEditVal = editCategoriaForm.value;
+    editCategoriaForm.innerHTML = `<option value="">Selecione...</option>` + 
+        currentCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+    editCategoriaForm.value = currentCategories.includes(currentEditVal) ? currentEditVal : '';
 }
 
 selectCategoriaForm.addEventListener('change', async (e) => {
@@ -498,6 +515,12 @@ function renderTable(items) {
             <td data-label="Total">R$ ${itemTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
             <td data-label="Ações">
                 <div class="actions">
+                    <div class="quick-price-field" title="Preço Rápido">
+                        <span>R$</span>
+                        <input type="number" step="0.01" value="${item.valorUnitario || ''}" 
+                            onchange="updatePriceQuickly('${item.id}', this.value)" 
+                            placeholder="0,00">
+                    </div>
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
                         <i class="fas ${item.status === 'Comprado' ? 'fa-undo' : 'fa-check'}"></i>
                     </button>
@@ -572,21 +595,57 @@ window.editItem = (id) => {
     const item = currentItems.find(i => i.id === id);
     if (!item) return;
 
-    document.getElementById('productId').value = item.id;
-    document.getElementById('nome').value = item.nome;
-    document.getElementById('categoria').value = item.categoria;
-    document.getElementById('quantidade').value = item.quantidade;
-    document.getElementById('unidade').value = item.unidade;
-    document.getElementById('valorUnitario').value = item.valorUnitario || '';
-    document.getElementById('mesReferencia').value = item.mesReferencia;
-    document.getElementById('status').value = item.status;
-    document.getElementById('observacao').value = item.observacao || '';
+    document.getElementById('editProductId').value = item.id;
+    document.getElementById('editNome').value = item.nome;
+    document.getElementById('editCategoria').value = item.categoria;
+    document.getElementById('editQuantidade').value = item.quantidade;
+    document.getElementById('editUnidade').value = item.unidade;
+    document.getElementById('editValorUnitario').value = item.valorUnitario || '';
+    document.getElementById('editMesReferencia').value = item.mesReferencia;
+    document.getElementById('editStatus').value = item.status;
+    document.getElementById('editObservacao').value = item.observacao || '';
 
-    isEditing = true; editId = id;
-    document.getElementById('btnSave').innerHTML = '<i class="fas fa-save"></i> Atualizar Produto';
-    document.getElementById('btnCancel').style.display = 'inline-flex';
-    document.getElementById('cadastro').scrollIntoView({ behavior: 'smooth' });
+    editModal.classList.add('active');
 };
+
+window.updatePriceQuickly = async (id, value) => {
+    const price = parseFloat(value) || 0;
+    try {
+        await updateDoc(doc(db, "compras", id), { valorUnitario: price });
+        showToast('Preço atualizado!');
+    } catch (err) {
+        showToast('Erro ao atualizar preço.', 'error');
+    }
+};
+
+editProductForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editProductId').value;
+    const btn = editProductForm.querySelector('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+    const data = {
+        nome: document.getElementById('editNome').value,
+        categoria: document.getElementById('editCategoria').value,
+        quantidade: Number(document.getElementById('editQuantidade').value),
+        unidade: document.getElementById('editUnidade').value,
+        valorUnitario: Number(document.getElementById('editValorUnitario').value) || 0,
+        mesReferencia: document.getElementById('editMesReferencia').value,
+        status: document.getElementById('editStatus').value,
+        observacao: document.getElementById('editObservacao').value
+    };
+
+    try {
+        await updateDoc(doc(db, "compras", id), data);
+        showToast('Produto atualizado com sucesso!');
+        editModal.classList.remove('active');
+    } catch (error) {
+        showToast('Erro ao atualizar produto.', 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = originalText;
+    }
+});
 
 window.deleteItem = (id) => {
     itemToDelete = id;

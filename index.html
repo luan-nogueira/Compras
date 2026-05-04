@@ -276,6 +276,72 @@
         </div>
     </div>
 
+    <!-- Edit Item Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Editar Produto</h2>
+                <button class="close-modal" id="btnCloseEdit">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editProductForm">
+                    <input type="hidden" id="editProductId">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label for="editNome">Nome do Produto</label>
+                            <input type="text" id="editNome" required placeholder="Ex: Arroz 5kg">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="editCategoria">Categoria</label>
+                            <select id="editCategoria" required>
+                                <!-- Preenchido dinamicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editQuantidade">Quantidade</label>
+                            <input type="number" id="editQuantidade" step="0.01" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="editUnidade">Unidade</label>
+                            <select id="editUnidade" required>
+                                <option value="un">Unidade (un)</option>
+                                <option value="kg">Quilo (kg)</option>
+                                <option value="lt">Litro (lt)</option>
+                                <option value="pct">Pacote (pct)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="editValorUnitario">Valor Unitário (R$)</label>
+                            <input type="number" id="editValorUnitario" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editMesReferencia">Mês de Referência</label>
+                            <input type="month" id="editMesReferencia" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editStatus">Status</label>
+                            <select id="editStatus" required>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Comprado">Comprado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editObservacao">Observação</label>
+                        <textarea id="editObservacao" rows="2"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save"></i> Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
