@@ -414,14 +414,14 @@ function render() {
 function renderTable(items) {
     productsList.innerHTML = items.map(item => `
         <tr class="animate-fade-in">
-            <td><span class="status-badge ${item.status.toLowerCase()}">${item.status}</span></td>
-            <td>
+            <td data-label="Status"><span class="status-badge ${item.status.toLowerCase()}">${item.status}</span></td>
+            <td data-label="Produto">
                 <strong>${item.nome}</strong>
                 ${item.observacao ? `<br><small class="text-muted">${item.observacao}</small>` : ''}
             </td>
-            <td>${item.categoria}</td>
-            <td>${item.quantidade} ${item.unidade}</td>
-            <td>
+            <td data-label="Categoria">${item.categoria}</td>
+            <td data-label="Qtd/Un">${item.quantidade} ${item.unidade}</td>
+            <td data-label="Ações">
                 <div class="actions">
                     <button onclick="toggleStatus('${item.id}', '${item.status}')" class="btn-icon btn-check" title="Alternar Status">
                         <i class="fas ${item.status === 'Comprado' ? 'fa-undo' : 'fa-check'}"></i>
