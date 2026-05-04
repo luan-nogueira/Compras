@@ -726,9 +726,30 @@ td {
     }
 
     thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
+        display: flex;
+        padding: 0.5rem;
+        background: var(--bg-color);
+        border-bottom: 2px solid var(--border-color);
+        position: static;
+    }
+
+    th {
+        display: none;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        font-weight: 700;
+    }
+
+    th:nth-child(2) { /* Produto */
+        display: block;
+        flex: 1;
+    }
+
+    th:last-child { /* Ações */
+        display: block;
+        width: 160px;
+        text-align: right;
     }
 
     tr {

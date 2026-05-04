@@ -129,7 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     setupMonthFilters();
     initAuthOrVisitor();
+    adjustMobileHeader();
 });
+
+function adjustMobileHeader() {
+    const thActions = document.getElementById('thActions');
+    if (window.innerWidth <= 768 && thActions) {
+        thActions.innerHTML = 'Preço | Status | Opções';
+    }
+}
+window.addEventListener('resize', adjustMobileHeader);
 
 // ==========================================
 // TEMA E UI
