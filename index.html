@@ -85,7 +85,7 @@
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
                             <label for="nome">Nome do Produto</label>
-                            <input type="text" id="nome" required placeholder="Ex: Arroz 5kg">
+                            <input type="text" id="nome" required placeholder="Ex: Arroz 5kg" list="productNamesList">
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label for="categoria">Categoria</label>
@@ -137,8 +137,9 @@
                         <label for="observacao">Observação (Opcional)</label>
                         <textarea id="observacao" rows="2" placeholder="Alguma nota importante ou detalhe da marca..."></textarea>
                     </div>
+                    <datalist id="productNamesList"></datalist>
                     <div class="form-actions">
-                        <button type="submit" id="btnSave" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Produto</button>
+                        <button type="submit" id="btnSave" class="btn btn-primary btn-lg"><i class="fas fa-save"></i> Salvar Produto</button>
                         <button type="button" id="btnCancel" class="btn btn-secondary" style="display:none;"><i class="fas fa-times"></i> Cancelar</button>
                     </div>
                 </form>
@@ -150,6 +151,10 @@
             <div class="section-header">
                 <h2><i class="fas fa-list-ul"></i> Lista de Compras</h2>
                 <div class="filters">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar produto...">
+                    </div>
                     <select id="filterMonth">
                         <!-- Preenchido via JS -->
                     </select>
@@ -161,6 +166,14 @@
                         <option value="all">Todos Status</option>
                         <option value="Pendente">Pendente</option>
                         <option value="Comprado">Comprado</option>
+                    </select>
+                    <select id="sortBy">
+                        <option value="recent">Mais Recentes</option>
+                        <option value="name-asc">Nome (A-Z)</option>
+                        <option value="name-desc">Nome (Z-A)</option>
+                        <option value="price-desc">Maior Preço</option>
+                        <option value="price-asc">Menor Preço</option>
+                        <option value="status">Status</option>
                     </select>
                 </div>
             </div>
@@ -187,6 +200,11 @@
                         <span class="card-label" id="balanceLabel">Saldo</span>
                         <h3 id="balanceValue">R$ 0,00</h3>
                     </div>
+                </div>
+
+                <div class="category-chart">
+                    <h4 class="chart-title"><i class="fas fa-chart-bar"></i> Gastos por Categoria</h4>
+                    <div class="chart-bars" id="chartBars"></div>
                 </div>
             </div>
 
@@ -289,7 +307,7 @@
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
                             <label for="editNome">Nome do Produto</label>
-                            <input type="text" id="editNome" required placeholder="Ex: Arroz 5kg">
+                            <input type="text" id="editNome" required placeholder="Ex: Arroz 5kg" list="productNamesList">
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label for="editCategoria">Categoria</label>
@@ -344,6 +362,50 @@
 
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Botões Flutuantes -->
+    <div class="fab-container">
+        <button id="calcFabBtn" class="fab-btn fab-calc" title="Calculadora">
+            <i class="fas fa-calculator"></i>
+        </button>
+        <button id="addFabBtn" class="fab-btn fab-add" title="Adicionar Item">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Calculadora Flutuante -->
+    <div id="calcPanel" class="calc-panel">
+        <div class="calc-header">
+            <span><i class="fas fa-calculator"></i> Calculadora</span>
+            <button id="calcCloseBtn" class="close-modal">&times;</button>
+        </div>
+        <input type="text" id="calcDisplay" class="calc-display" readonly value="0">
+        <div class="calc-buttons">
+            <button class="calc-btn calc-op" data-action="clear">C</button>
+            <button class="calc-btn calc-op" data-action="backspace"><i class="fas fa-backspace"></i></button>
+            <button class="calc-btn calc-op" data-value="%">%</button>
+            <button class="calc-btn calc-op" data-value="/">÷</button>
+
+            <button class="calc-btn" data-value="7">7</button>
+            <button class="calc-btn" data-value="8">8</button>
+            <button class="calc-btn" data-value="9">9</button>
+            <button class="calc-btn calc-op" data-value="*">×</button>
+
+            <button class="calc-btn" data-value="4">4</button>
+            <button class="calc-btn" data-value="5">5</button>
+            <button class="calc-btn" data-value="6">6</button>
+            <button class="calc-btn calc-op" data-value="-">−</button>
+
+            <button class="calc-btn" data-value="1">1</button>
+            <button class="calc-btn" data-value="2">2</button>
+            <button class="calc-btn" data-value="3">3</button>
+            <button class="calc-btn calc-op" data-value="+">+</button>
+
+            <button class="calc-btn calc-zero" data-value="0">0</button>
+            <button class="calc-btn" data-value=".">.</button>
+            <button class="calc-btn calc-equal" data-action="equals">=</button>
+        </div>
+    </div>
 
     <!-- Firebase SDK -->
     <script type="module" src="script.js"></script>

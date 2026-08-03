@@ -310,6 +310,18 @@ input:focus, select:focus, textarea:focus {
 
 .w-100 { width: 100%; }
 
+.btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1.05rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+}
+
 /* Table */
 .table-responsive {
     overflow-x: auto;
@@ -463,11 +475,33 @@ td {
     font-size: 0.875rem;
 }
 
+.search-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-wrapper i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.search-wrapper input {
+    width: 100%;
+    padding: 0.5rem 0.75rem 0.5rem 2.2rem;
+    font-size: 0.875rem;
+}
+
 /* Toasts */
 .toast-container {
     position: fixed;
     bottom: 20px;
-    right: 20px;
+    left: 20px;
     z-index: 9999;
     display: flex;
     flex-direction: column;
@@ -484,7 +518,7 @@ td {
     align-items: center;
     gap: 0.75rem;
     border-left: 4px solid var(--primary-color);
-    animation: slideInRight 0.3s forwards;
+    animation: slideInLeft 0.3s forwards;
 }
 
 .toast-success { border-left-color: var(--success); }
@@ -535,14 +569,14 @@ td {
 }
 
 /* Animations */
-@keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
 
-@keyframes slideOutRight {
+@keyframes slideOutLeft {
     from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(-100%); opacity: 0; }
 }
 
 .animate-fade-in {
@@ -620,6 +654,202 @@ td {
 #balanceCard.negative { border-left: 4px solid var(--danger); }
 #balanceCard.negative h3 { color: var(--danger); }
 
+/* Gráfico de Gastos por Categoria */
+.category-chart {
+    margin-top: 1.5rem;
+    background: var(--card-bg);
+    padding: 1.25rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+.chart-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.chart-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.chart-bar-label {
+    width: 110px;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chart-bar-track {
+    flex: 1;
+    height: 10px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.chart-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+
+.chart-bar-value {
+    width: 100px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* Botões Flutuantes (FAB) */
+.fab-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    z-index: 998;
+}
+
+.fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+}
+
+.fab-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.fab-btn:active {
+    transform: scale(0.95);
+}
+
+.fab-add {
+    background: var(--primary-color);
+}
+
+.fab-calc {
+    background: var(--card-bg);
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    width: 48px;
+    height: 48px;
+    font-size: 1.1rem;
+}
+
+/* Calculadora Flutuante */
+.calc-panel {
+    position: fixed;
+    bottom: 96px;
+    right: 24px;
+    width: 280px;
+    max-width: calc(100vw - 48px);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--shadow), 0 10px 30px rgba(0, 0, 0, 0.2);
+    z-index: 999;
+    padding: 1rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.75rem;
+    transform: translateY(10px);
+    opacity: 0;
+    transition: transform 0.25s ease, opacity 0.25s ease, background-color 0.3s;
+}
+
+.calc-panel.active {
+    display: flex;
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.calc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.calc-header span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary-color);
+}
+
+.calc-display {
+    width: 100%;
+    text-align: right;
+    font-size: 1.75rem;
+    font-weight: 700;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-main);
+    overflow-x: auto;
+}
+
+.calc-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+}
+
+.calc-btn {
+    padding: 0.75rem 0;
+    border: none;
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.calc-btn:hover { background: var(--border-color); }
+.calc-btn:active { transform: scale(0.94); }
+
+.calc-op { background: var(--card-blue-bg); color: var(--card-blue-text); }
+.calc-equal { background: var(--primary-color); color: white; grid-column: span 2; }
+.calc-equal:hover { background: var(--primary-hover); }
+.calc-zero { grid-column: span 2; }
+
 /* Responsive */
 @media (max-width: 768px) {
     .container {
@@ -695,6 +925,21 @@ td {
 
     .finance-card.budget {
         grid-column: span 2;
+    }
+
+    .category-chart {
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .chart-bar-label {
+        width: 72px;
+        font-size: 0.72rem;
+    }
+
+    .chart-bar-value {
+        width: 78px;
+        font-size: 0.72rem;
     }
 
     .form-row {
@@ -875,5 +1120,38 @@ td {
     .modal-content {
         width: 95%;
         padding: 1.5rem;
+    }
+
+    .fab-container {
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .fab-btn {
+        width: 52px;
+        height: 52px;
+        font-size: 1.3rem;
+    }
+
+    .fab-calc {
+        width: 44px;
+        height: 44px;
+        font-size: 1rem;
+    }
+
+    .calc-panel {
+        bottom: 84px;
+        right: 16px;
+        width: 260px;
+    }
+
+    .toast-container {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+    }
+
+    .toast {
+        width: 100%;
     }
 }

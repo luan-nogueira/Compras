@@ -105,9 +105,11 @@ const productsList = document.getElementById('productsList');
 const filterMonth = document.getElementById('filterMonth');
 const filterCategory = document.getElementById('filterCategory');
 const filterStatus = document.getElementById('filterStatus');
+const sortBySelect = document.getElementById('sortBy');
 const btnCopyNextMonth = document.getElementById('btnCopyNextMonth');
 const btnExportWhatsapp = document.getElementById('btnExportWhatsapp');
 const selectCategoriaForm = document.getElementById('categoria');
+const searchInput = document.getElementById('searchInput');
 const inputBudget = document.getElementById('inputBudget');
 const totalPrevistoEl = document.getElementById('totalPrevisto');
 const totalCompradoEl = document.getElementById('totalComprado');
@@ -424,6 +426,7 @@ function listenToData() {
     unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         currentItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         currentItems.sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
+        updateProductNamesDatalist();
         render();
     }, (error) => {
         console.error("Erro no onSnapshot:", error);
@@ -435,16 +438,88 @@ function render() {
     const month = filterMonth.value;
     const category = filterCategory.value;
     const status = filterStatus.value;
+    const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     const filtered = currentItems.filter(item => {
         const matchMonth = item.mesReferencia === month;
         const matchCat = category === 'all' || item.categoria === category;
         const matchStatus = status === 'all' || item.status === status;
-        return matchMonth && matchCat && matchStatus;
+        const matchSearch = !search || item.nome.toLowerCase().includes(search);
+        return matchMonth && matchCat && matchStatus && matchSearch;
     });
 
-    renderTable(filtered);
+    const sorted = applySort(filtered);
+
+    renderTable(sorted);
     updateFinanceDashboard(filtered);
+    renderCategoryChart(filtered);
+}
+
+function applySort(items) {
+    const sortBy = sortBySelect ? sortBySelect.value : 'recent';
+    const sorted = [...items];
+    switch (sortBy) {
+        case 'name-asc': sorted.sort((a, b) => a.nome.localeCompare(b.nome)); break;
+        case 'name-desc': sorted.sort((a, b) => b.nome.localeCompare(a.nome)); break;
+        case 'price-desc': sorted.sort((a, b) => (b.valorUnitario || 0) - (a.valorUnitario || 0)); break;
+        case 'price-asc': sorted.sort((a, b) => (a.valorUnitario || 0) - (b.valorUnitario || 0)); break;
+        case 'status': sorted.sort((a, b) => a.status.localeCompare(b.status)); break;
+        default: break; // 'recent' já vem ordenado por dataCriacao
+    }
+    return sorted;
+}
+
+// ==========================================
+// AUTOCOMPLETE DE PRODUTOS
+// ==========================================
+function updateProductNamesDatalist() {
+    const datalist = document.getElementById('productNamesList');
+    if (!datalist) return;
+    const uniqueNames = [...new Set(currentItems.map(i => i.nome))].sort((a, b) => a.localeCompare(b));
+    datalist.innerHTML = uniqueNames.map(n => `<option value="${n}"></option>`).join('');
+}
+
+// ==========================================
+// GRÁFICO DE GASTOS POR CATEGORIA
+// ==========================================
+const chartColors = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#a855f7', '#ef4444', '#84cc16'];
+
+function getCategoryColor(categoria) {
+    const idx = currentCategories.indexOf(categoria);
+    return chartColors[(idx >= 0 ? idx : 0) % chartColors.length];
+}
+
+function renderCategoryChart(items) {
+    const chartBars = document.getElementById('chartBars');
+    if (!chartBars) return;
+
+    const totals = {};
+    items.forEach(item => {
+        const total = (item.valorUnitario || 0) * (item.quantidade || 0);
+        totals[item.categoria] = (totals[item.categoria] || 0) + total;
+    });
+
+    const entries = Object.entries(totals).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+
+    if (entries.length === 0) {
+        chartBars.innerHTML = '<p style="font-size:0.85rem; color: var(--text-muted); text-align:center; padding: 0.25rem 0;">Nenhum gasto registrado neste período.</p>';
+        return;
+    }
+
+    const maxValue = entries[0][1];
+    chartBars.innerHTML = entries.map(([categoria, valor]) => {
+        const pct = maxValue > 0 ? (valor / maxValue) * 100 : 0;
+        const color = getCategoryColor(categoria);
+        return `
+            <div class="chart-bar-row">
+                <span class="chart-bar-label" title="${categoria}">${categoria}</span>
+                <div class="chart-bar-track">
+                    <div class="chart-bar-fill" style="width: ${pct}%; background: ${color};"></div>
+                </div>
+                <span class="chart-bar-value">R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </div>
+        `;
+    }).join('');
 }
 
 async function loadBudget() {
@@ -798,3 +873,138 @@ filterMonth.addEventListener('change', () => {
 });
 filterCategory.addEventListener('change', render);
 filterStatus.addEventListener('change', render);
+if (searchInput) searchInput.addEventListener('input', render);
+if (sortBySelect) sortBySelect.addEventListener('change', render);
+
+// ==========================================
+// ATALHO: ENTER PARA SALVAR (exceto em textarea)
+// ==========================================
+[productForm, editProductForm].forEach(form => {
+    form.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            form.requestSubmit();
+        }
+    });
+});
+
+// ==========================================
+// BOTÕES FLUTUANTES (FAB)
+// ==========================================
+const addFabBtn = document.getElementById('addFabBtn');
+if (addFabBtn) {
+    addFabBtn.addEventListener('click', () => {
+        navigateToSection('cadastro');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => document.getElementById('nome')?.focus(), 300);
+    });
+}
+
+// ==========================================
+// CALCULADORA FLUTUANTE
+// ==========================================
+const calcFabBtn = document.getElementById('calcFabBtn');
+const calcPanel = document.getElementById('calcPanel');
+const calcCloseBtn = document.getElementById('calcCloseBtn');
+const calcDisplay = document.getElementById('calcDisplay');
+
+let calcCurrent = '0';
+let calcPrevious = null;
+let calcOperator = null;
+let calcResetNext = false;
+
+function calcFormatNumber(num) {
+    if (!isFinite(num)) return '0';
+    return String(Math.round(num * 1e8) / 1e8);
+}
+
+function calcUpdateDisplay() {
+    if (calcDisplay) calcDisplay.value = calcCurrent;
+}
+
+function calcInputDigit(digit) {
+    if (calcResetNext) {
+        calcCurrent = '0';
+        calcResetNext = false;
+    }
+    if (digit === '.' && calcCurrent.includes('.')) return;
+    calcCurrent = (calcCurrent === '0' && digit !== '.') ? digit : calcCurrent + digit;
+    calcUpdateDisplay();
+}
+
+function calcCompute(a, b, op) {
+    switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b === 0 ? 0 : a / b;
+        default: return b;
+    }
+}
+
+function calcSetOperator(op) {
+    if (calcOperator && !calcResetNext) {
+        calcCurrent = calcFormatNumber(calcCompute(calcPrevious, parseFloat(calcCurrent), calcOperator));
+    }
+    calcPrevious = parseFloat(calcCurrent);
+    calcOperator = op;
+    calcResetNext = true;
+    calcUpdateDisplay();
+}
+
+function calcEquals() {
+    if (calcOperator === null) return;
+    calcCurrent = calcFormatNumber(calcCompute(calcPrevious, parseFloat(calcCurrent), calcOperator));
+    calcOperator = null;
+    calcPrevious = null;
+    calcResetNext = true;
+    calcUpdateDisplay();
+}
+
+function calcClear() {
+    calcCurrent = '0';
+    calcPrevious = null;
+    calcOperator = null;
+    calcResetNext = false;
+    calcUpdateDisplay();
+}
+
+function calcBackspace() {
+    calcCurrent = calcCurrent.length > 1 ? calcCurrent.slice(0, -1) : '0';
+    calcUpdateDisplay();
+}
+
+function calcPercent() {
+    calcCurrent = calcFormatNumber(parseFloat(calcCurrent) / 100);
+    calcUpdateDisplay();
+}
+
+if (calcFabBtn && calcPanel) {
+    calcFabBtn.addEventListener('click', () => {
+        calcPanel.classList.toggle('active');
+    });
+}
+
+if (calcCloseBtn) {
+    calcCloseBtn.addEventListener('click', () => calcPanel.classList.remove('active'));
+}
+
+document.querySelectorAll('.calc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const value = btn.dataset.value;
+
+        if (action === 'clear') return calcClear();
+        if (action === 'backspace') return calcBackspace();
+        if (action === 'equals') return calcEquals();
+        if (value === '%') return calcPercent();
+        if (['+', '-', '*', '/'].includes(value)) return calcSetOperator(value);
+        return calcInputDigit(value);
+    });
+});
+
+document.addEventListener('click', (e) => {
+    if (!calcPanel || !calcPanel.classList.contains('active')) return;
+    if (calcPanel.contains(e.target) || calcFabBtn.contains(e.target)) return;
+    calcPanel.classList.remove('active');
+});
